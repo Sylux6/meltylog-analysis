@@ -29,7 +29,7 @@ def plot_palette(labels,filename):
     return
 
 def alter_plot_palette(labels,filename): 
-    cmap = plt.cm.Set3
+    cmap = plt.cm.tab20
     colormap = cmap(np.linspace(0., 1., len(labels)))
     image=np.zeros((1,len(labels),4))
     image[0,:,:]=colormap
@@ -80,7 +80,7 @@ def plot_sessions(cluster_log, filename, cluster_id, labels,
     # Values and colors
     # black + colormap
     # req   + difference in field
-    cmap = plt.cm.Set3
+    cmap = plt.cm.tab20
     colormap=cmap(np.linspace(0., 1., len(labels)))
     colormap=np.vstack((np.array([0,0,0,1]),colormap))
     

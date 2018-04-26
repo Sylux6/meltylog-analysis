@@ -4,7 +4,6 @@ pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as News_proportion
 from sklearn.cluster import KMeans
 
-from thema_mapper import *
 from log2traces import *
 from markov import *
 from information_theory import *
