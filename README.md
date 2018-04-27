@@ -1,4 +1,2 @@
 # meltylog-analysis
-Data mining from log files provided by Melty for the ALGODIV project. 
-
-Run melty-tool.py
+Data mining from log files provided by Melty for the ALGODIV project.
