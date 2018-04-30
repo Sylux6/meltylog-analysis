@@ -28,5 +28,5 @@ def session_draw(cluster_id, n_id, sessions_id, log, pages, labels):
             idx = labels.index(pages[pages.url==u].category.values[0])
             color[v[u]] = colormap[idx+1].tolist()
         session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
-        graph_draw(g, vertex_halo=halo, vertex_fill_color=color, output="Graphs/"+str(n_id)+"/"+str(cluster_id)+"_session"+str(id)+".png")
+        graph_draw(g, vertex_halo=halo, vertex_fill_color=color, output="Latex/Graphs/"+str(n_id)+"/"+str(cluster_id)+"_session"+str(id)+".png")
     return

@@ -33,18 +33,19 @@ urls_filename = "Outputs/pages.csv"
 session_filename = "Outputs/Sessions.csv"
 
 pathlib.Path("Latex").mkdir(parents=True, exist_ok=True)
-pathlib.Path("Graphs").mkdir(parents=True, exist_ok=True)
-pathlib.Path("Clusters").mkdir(parents=True, exist_ok=True)
+pathlib.Path("Latex/Graphs").mkdir(parents=True, exist_ok=True)
+pathlib.Path("Latex/Clusters").mkdir(parents=True, exist_ok=True)
 latex_output = open("Latex/latex_clusters.tex", "w")
+latex_date = "3\\up{rd} of May, 2018"
 
 ###########
 # VARIABLES
 # dim1
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
 # dim2
-# dimensions = ["star_chain_like", "bifurcation"]
+dimensions = ["star_chain_like", "bifurcation"]
 # dim3
-dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
+# dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 NB_CLUSTERS = [4, 5, 6, 7, 8, 9, 10]
@@ -79,8 +80,8 @@ print("\n   > Elbow analysis: {}".format(elbow))
 print("   > Session graph generation: {}".format(graph))
 print("   > NB_CLUSTERS: {}".format(NB_CLUSTERS))
 
-# # LaTeX init
-# latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n")
+# LaTeX init
+latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\usetheme{Warsaw}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{graphicx}\n\\usepackage[french]{babel}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathrsfs}\n\\usepackage{verbatim}\n\\usepackage{lmodern}\n\\usepackage{listings}\n\\usepackage{caption}\n\\usepackage{multicol}\n\\usepackage{epsfig}\n\\usepackage{array}\n\\usepackage{tikz}\n\\usepackage{collcell}\n\n\\definecolor{mygreen}{rgb}{0,0.6,0}\n\\setbeamertemplate{headline}{}{}\n\\addtobeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}\n\n\\title{Melty Clusterization}\n\\author{Sylvain Ung}\n\\institute{Laboratoire d'informatique de Paris 6}\n\\date{"+latex_date+"}\n\n\\begin{document}\n\\setbeamertemplate{section page}\n{\n  \\begin{centering}\n    \\vskip1em\\par\n    \\begin{beamercolorbox}[sep=4pt,center]{part title}\n      \\usebeamerfont{section title}\\insertsection\\par\n    \\end{beamercolorbox}\n  \\end{centering}\n}\n\n\\begin{frame}\n    \\titlepage\n\\end{frame}\n\n")
 
 latex_output.write("\\begin{frame}{Clustering}\n    Clustering on "+str(len(dimensions))+" dimensions:\n    \\begin{multicols}{2}\n        \\footnotesize{\n            \\begin{enumerate}\n")
 for d in dimensions:
@@ -96,8 +97,8 @@ category_list = list(urls.category.unique())
 for n in NB_CLUSTERS:
     start_time = timelib.time()
     print("\n   * Clustering ("+str(n)+" clusters) ...")
-    pathlib.Path("Graphs/"+str(n)).mkdir(parents=True, exist_ok=True)
-    pathlib.Path("Clusters/"+str(n)).mkdir(parents=True, exist_ok=True)
+    pathlib.Path("Latex/Graphs/"+str(n)).mkdir(parents=True, exist_ok=True)
+    pathlib.Path("Latex/Clusters/"+str(n)).mkdir(parents=True, exist_ok=True)
     kmeans = KMeans(n_clusters=n, random_state=0).fit(sessions[normalized_dimensions].values)
     cluster_labels=kmeans.labels_
     sessions["cluster_id"] = cluster_labels
@@ -147,7 +148,7 @@ for n in NB_CLUSTERS:
         print("          Producing display of sessions for cluster %d"%cluster_id,end="\r") 
         cluster_sessions = sessions[sessions.cluster_id == cluster_id].global_session_id.unique()
         cluster_log = log[log.global_session_id.isin(cluster_sessions)]
-        sessions_id = plot_sessions(cluster_log,'Clusters/'+str(n)+'/cluster%d.png'%cluster_id, cluster_id,
+        sessions_id = plot_sessions(cluster_log,'Latex/Clusters/'+str(n)+'/cluster%d.png'%cluster_id, cluster_id,
                     labels=list(log.requested_topic.unique()),
                     N_max_sessions=10,field="requested_topic",
                     max_time=None,time_resolution=None,mark_requests=False)
@@ -180,8 +181,8 @@ for n in NB_CLUSTERS:
 
         print("          Display of sessions succesfully produced for cluster %d"%cluster_id) 
     print("   * Clustered in {:.1f} seconds.".format((timelib.time()-start_time)))
-plot_palette(labels=topic_list, filename="Clusters/palette_topic.png")
-plot_palette(labels=category_list, filename="Clusters/palette_category.png")
+plot_palette(labels=topic_list, filename="Latex/Clusters/palette_topic.png")
+plot_palette(labels=category_list, filename="Latex/Clusters/palette_category.png")
 
 # elbow analysis
 if elbow:
@@ -196,11 +197,12 @@ if elbow:
     plt.plot(range(2, explore_N_clusters), distorsions)
     plt.grid(True)
     plt.title('Elbow curve')
-    plt.savefig('Clusters/elbow.png', format='png')
+    plt.savefig('Latex/Clusters/elbow.png', format='png')
     plt.clf()
     plt.close()
     print("     Elbow computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
 ###############
 # END OF SCRIPT
+latex_output.write("\\end{document}")
 print("\n   * Done in {:.1f} seconds.\n".format(timelib.time()-begin_time)) 
