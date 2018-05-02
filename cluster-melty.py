@@ -57,11 +57,11 @@ print("\n   * 'Latex' directory created.")
 dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
-NB_CLUSTERS = [4]
+range_n_clusters = [4, 5, 6, 7, 8, 9, 10]
 max_components = len(dimensions)
 threshold_explained_variance = 0.90
 
-####################
+###############################################################################
 # READING DATA FILES
 print("\n   * Loading files ...")
 start_time = timelib.time()
@@ -78,14 +78,14 @@ sessions = pd.read_csv(session_filename, sep=',')
 print("        "+session_filename+" loaded ({} rows) in {:.1f} seconds.".format(sessions.shape[0], timelib.time()-start_time))
 sessions.fillna(0, inplace=True)
 
-########
+###############################################################################
 # FILTER
 sessions = sessions[sessions.requests > 6]
 print("\n   * Sessions filtered: {} rows".format(sessions.shape[0]))
 
 normalized_dimensions = list(map(lambda x: "normalized_"+x, dimensions)) # normalized dimensions labels list
 
-print("   > NB_CLUSTERS: {}".format(NB_CLUSTERS))
+print("   > range_n_clusters: {}".format(range_n_clusters))
 
 # LaTeX init
 latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\usetheme{Warsaw}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{graphicx}\n\\usepackage[english]{babel}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathrsfs}\n\\usepackage{verbatim}\n\\usepackage{lmodern}\n\\usepackage{listings}\n\\usepackage{caption}\n\\usepackage{multicol}\n\\usepackage{epsfig}\n\\usepackage{array}\n\\usepackage{tikz}\n\\usepackage{collcell}\n\n\\definecolor{mygreen}{rgb}{0,0.6,0}\n\\setbeamertemplate{headline}{}{}\n\\addtobeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}\n\n\\title{Melty Clusterization}\n\\author{Sylvain Ung}\n\\institute{Laboratoire d'informatique de Paris 6}\n\\date{\\today}\n\n\\begin{document}\n\\setbeamertemplate{section page}\n{\n  \\begin{centering}\n    \\vskip1em\\par\n    \\begin{beamercolorbox}[sep=4pt,center]{part title}\n      \\usebeamerfont{section title}\\insertsection\\par\n    \\end{beamercolorbox}\n  \\end{centering}\n}\n\n\\begin{frame}\n    \\titlepage\n\\end{frame}\n\n")
@@ -95,7 +95,7 @@ for d in dimensions:
     latex_output.write("                \\item "+d.replace("_", "\_")+"\n")
 latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols}\n\\end{frame}\n\n")
 
-######################
+###############################################################################
 # CORRELATION ANALYSIS
 
 start_time = timelib.time()
@@ -113,24 +113,96 @@ ax.set_xticks(range(len(dimensions)))
 ax.set_yticks(range(len(dimensions)))
 ax.set_xticklabels(dimensions)
 ax.set_yticklabels(dimensions)
-plt.tick_params(axis='both', which='both', labelsize=10)
+plt.tick_params(axis='both', which='both', labelsize=8)
 plt.savefig('Latex/pca/corr_before_pca.png', format='png')
 plt.clf()
 latex_output.write("\\begin{frame}{Correlation analysis}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/corr_before_pca}\n    \\end{center}\n\\end{frame}\n\n")
 print("   * Correlation computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
+###############################################################################
+# PCA
 
-############
+start_time = timelib.time()
+print("\n   * Computing PCA explained variance ...", end="\r")
+pca = PCA(n_components=max_components)
+
+# Data in PCA coordinates: n_samples x n_components
+normalized_pca_data=pca.fit_transform(sessions[normalized_dimensions].values)
+
+# selecting components that explain variance
+n_components_threshold=len(pca.explained_variance_ratio_[pca.explained_variance_ratio_.cumsum()<threshold_explained_variance])+1
+
+plt.figure()
+plt.plot(range(1,max_components+1),100.0*pca.explained_variance_ratio_, 'r+')
+plt.axis([0, max_components+1, 0, 100])
+plt.gca().axvline(x=n_components_threshold,c='b',alpha=0.25)
+plt.text(n_components_threshold+0.5,75,
+         '%0.2f%% explained variancce.'%(100*pca.explained_variance_ratio_.cumsum()[n_components_threshold-1]))
+plt.xlabel('Component')
+plt.ylabel('% Explained Variance')
+plt.grid()
+plt.savefig('Latex/pca/explained_variance_ratio.png')
+plt.clf()
+latex_output.write("\\begin{frame}{PCA explained variance}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/explained_variance_ratio}\n    \\end{center}\n\\end{frame}\n\n")
+print("   * PCA explained variance computed in {:.1f} seconds.".format((timelib.time()-start_time)))
+
+pca = PCA(n_components=n_components_threshold)
+clustering_data=pca.fit_transform(sessions[normalized_dimensions].values)
+
+###############################################################################
+# EXPLAINING PCA COMPONENTS
+
+fig, ax = plt.subplots()
+fig.set_size_inches([ 14, 14])
+matrix = pca.components_[:n_components_threshold,:].T
+ax.matshow(matrix, cmap=plt.cm.coolwarm)
+for i in range(matrix.shape[0]):
+    for j in range(matrix.shape[1]):
+        c = matrix[i,j]
+        ax.text(j,i, '%0.2f'%c, va='center', ha='center')
+ax.set_xticks(range(n_components_threshold))
+ax.set_yticks(range(len(dimensions)))
+ax.set_xticklabels(['PC-%d'%n for n in range(1,n_components_threshold+1)])
+ax.set_yticklabels(dimensions)
+plt.savefig('Latex/pca/components.png', format='png')
+plt.clf()
+del matrix
+latex_output.write("\\begin{frame}{PCA components}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/components}\n    \\end{center}\n\\end{frame}\n\n")
+
+silhouette_index=[]
+
+###############################################################################
 # CLUSTERING
 
 topic_list = list(log.requested_topic.unique())
 category_list = list(urls.category.unique())
 
-for n in NB_CLUSTERS:
+for n in range_n_clusters:
     start_time = timelib.time()
     print("\n   * Clustering ("+str(n)+" clusters) ...")
     pathlib.Path("Latex/Graphs/"+str(n)).mkdir(parents=True, exist_ok=True)
     pathlib.Path("Latex/Clusters/"+str(n)).mkdir(parents=True, exist_ok=True)
+
+    ###############################################################################
+    # Scatterplot
+    kmeans=KMeans(n_clusters=n)
+    cluster_labels=kmeans.fit_predict(clustering_data)
+    fig=plt.figure(1)
+    plt.scatter(clustering_data[:,0],clustering_data[:,1], c=kmeans.labels_, alpha=0.1)
+    plt.axis('equal')
+    plt.xlabel('PC-1')
+    plt.ylabel('PC-2')
+    plt.grid(True)
+    # Labeling the clusters
+    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], marker='o',
+                c="white", alpha=1, s=200, edgecolor='k')
+    for i, c in enumerate(kmeans.cluster_centers_):
+        plt.scatter(c[0], c[1], marker='$%d$' % i, alpha=1,
+                    s=50, edgecolor='k')
+    plt.savefig('Latex/pca/pca_scatterplot_cluster_%d.png'%n)
+    plt.clf()
+    latex_output.write("\\begin{frame}{PCA clustering -- "+str(n)+" clusters}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pca_scatterplot_cluster_"+str(n)+"}\n    \\end{center}\n\\end{frame}\n\n")
+
     kmeans = KMeans(n_clusters=n, random_state=0).fit(sessions[normalized_dimensions].values)
     cluster_labels=kmeans.labels_
     sessions["cluster_id"] = cluster_labels
@@ -217,7 +289,7 @@ for n in NB_CLUSTERS:
 plot_palette(labels=topic_list, filename="Latex/Clusters/palette_topic.png")
 plot_palette(labels=category_list, filename="Latex/Clusters/palette_category.png")
 
-###############
+###############################################################################
 # END OF SCRIPT
 latex_output.write("\\end{document}")
 print("\n   * Done in {:.1f} seconds.\n".format(timelib.time()-begin_time)) 
