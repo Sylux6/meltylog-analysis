@@ -8,7 +8,6 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from thema_mapper import *
 from log2traces import *
 from markov import *
 from information_theory import *
@@ -41,7 +40,10 @@ url_data_filename = 'Melty/pages.csv'
 start_time = timelib.time()
 print("        Loading "+log_filename+" ...", end="\r")
 log = pd.read_csv(log_filename, sep=',', dtype='object', na_filter=False)
-# log = log[:1000] # to remove
+# robot filter
+log = log[~log.agent.str.contains("BTWebClient")]
+log = log[~log.agent.str.contains("Genieo")]
+log = log[~log.agent.str.contains("urllib")]
 print("        "+log_filename+" loaded ({} rows) in {:.1f} seconds.".format(log.shape[0], timelib.time()-start_time))
 start_time = timelib.time()
 print("        Loading "+url_data_filename+" ...", end="\r")

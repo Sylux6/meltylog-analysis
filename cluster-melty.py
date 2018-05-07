@@ -52,9 +52,9 @@ print("\n   * 'Latex' directory created.")
 # dim1
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
 # dim2
-# dimensions = ["star_chain_like", "bifurcation"]
+dimensions = ["star_chain_like", "bifurcation"]
 # dim3
-dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
+# dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 range_n_clusters = [4, 5, 6, 7, 8, 9, 10]
