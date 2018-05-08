@@ -1,3 +1,4 @@
+
 import time as timelib
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -50,14 +51,14 @@ print("\n   * 'Latex' directory created.")
 ###########
 # VARIABLES
 # dim1
-# dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
+dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
 # dim2
-dimensions = ["star_chain_like", "bifurcation"]
+# dimensions = ["star_chain_like", "bifurcation"]
 # dim3
 # dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
-range_n_clusters = [4, 5, 6, 7, 8, 9, 10]
+range_n_clusters = [2, 3, 4, 5]
 max_components = len(dimensions)
 threshold_explained_variance = 0.90
 
@@ -203,6 +204,35 @@ for n in range_n_clusters:
     plt.clf()
     latex_output.write("\\begin{frame}{PCA clustering -- "+str(n)+" clusters}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pca_scatterplot_cluster_"+str(n)+"}\n    \\end{center}\n\\end{frame}\n\n")
 
+    ########################################################
+    # Scatterplot in pairwise original feature space pairs #
+    ########################################################
+    count = 0 # pairwises counter
+    latex_output.write("\\begin{frame}{Scatterplot in pairwise original feature space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
+    centroids_inverse_pca = pca.inverse_transform(kmeans.cluster_centers_)
+    for ftr1 in range(len(dimensions)):
+        for ftr2 in range(ftr1+1,len(dimensions)):
+            fig=plt.figure(1)
+            plt.scatter(sessions[normalized_dimensions].values[:,ftr1],sessions[normalized_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
+            plt.axis('equal')
+            plt.xlabel(dimensions[ftr1])
+            plt.ylabel(dimensions[ftr2])
+            plt.grid(True)
+            # Labeling the clusters
+            plt.scatter(centroids_inverse_pca[:,ftr1], centroids_inverse_pca[:, ftr2], marker='o',
+                        c="white", alpha=1, s=200, edgecolor='k')
+            for i, c in enumerate(centroids_inverse_pca):
+                plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
+                            s=50, edgecolor='k')
+            plt.savefig('Latex/pca/pairwise/pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
+            plt.clf()
+            if count%5 == 4:
+                latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
+            else:
+                latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
+            count = count + 1
+    latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+
     kmeans = KMeans(n_clusters=n, random_state=0).fit(sessions[normalized_dimensions].values)
     cluster_labels=kmeans.labels_
     sessions["cluster_id"] = cluster_labels
@@ -292,4 +322,4 @@ plot_palette(labels=category_list, filename="Latex/Clusters/palette_category.png
 ###############################################################################
 # END OF SCRIPT
 latex_output.write("\\end{document}")
-print("\n   * Done in {:.1f} seconds.\n".format(timelib.time()-begin_time)) 
+print("\n   * Done in {:.1f} seconds.\n".format(timelib.time()-begin_time))

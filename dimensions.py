@@ -224,7 +224,7 @@ print("   * Dimensions normalized in %.1f seconds." %(timelib.time()-start_time)
 
 start_time = timelib.time()
 print("\n   * Generating 'Outputs/Sessions.csv' ...", end="\r")
-result.to_csv(r"Outputs/Sessions.csv", index=None)
+result.to_csv(r"Outputs/_Sessions.csv", index=None)
 print("   * 'Outputs/Sessions.csv' generated in {:.1f} seconds.".format(timelib.time()-start_time))
 
 ###############
