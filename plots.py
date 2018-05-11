@@ -140,7 +140,7 @@ def plot_sessions(cluster_log, filename, cluster_id, labels,
     plt.savefig(filename, format='png')
     plt.clf()
     plt.close()    
-    return sessions;
+    return sessions
 
 
 def plot_pie(labels,distribution,filename,threshold=0.0):

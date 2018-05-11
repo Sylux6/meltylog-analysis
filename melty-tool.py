@@ -143,7 +143,7 @@ def print_session(session_id):
         if session.shape[0] == 0:
             print("Session {} not found.".format(session_id))
         else:
-            print(session[["timestamp", "referrer_url", "requested_url"]])
+            print(session[["timestamp", "referrer_url", "requested_url", "agent"]])
         input("Press ENTER to continue ...")
     else:
         print("Invalid input, please try again.\n")

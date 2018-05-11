@@ -19,6 +19,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pylab import *
 import pathlib
+from math import *
 
 ##################################
 ##################################
@@ -78,7 +79,10 @@ print("        Computing session IDs ...", end='\r')
 log = log_sessions(log, max_inactive_minutes=30)
 print("        Session IDs computed in %.1f seconds." %(timelib.time()-start_time))
 
-log.to_csv(r"Outputs/MyLog.csv", index=None)
+# remove parallel edges
+log = log.drop_duplicates(subset=["global_session_id", "referrer_url", "requested_url"])
+log.to_csv(r"Outputs/_MyLog.csv", index=None)
+print("        Parallel requests removed.")
 
 # Counting requests per session
 start_time = timelib.time()
@@ -214,12 +218,19 @@ dimensions = dimensions + urldata.topic.drop_duplicates().apply(lambda x: x+"_pr
 lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
 start_time = timelib.time()
 print("\n   * Normalizing dimensions ...", end="\r")
-for p in dimensions:
-    if p in lognorm:
-        result["normalized_"+p] = result[p]+1 # here we need to shift our data for log normalizatiion
-        result["normalized_"+p] = log_normalize(result["normalized_"+p])
+for d in dimensions:
+    if d in lognorm:
+        result["normalized_"+d] = result[d]+1 # here we need to shift our data for log normalization
+        result["normalized_"+d] = result["normalized_"+d].apply(lambda x: math.log(x))
     else:
-        result["normalized_"+p] = normalize(result[p])
+        result["normalized_"+d] = result[d]
+dimensions = list(map(lambda x: "normalized_"+x, dimensions))
+result = pd.notnull(result)
+scaler = StandardScaler()
+result[dimensions] = scaler.fit_transform(result[dimensions])
+# scaled_dim = scaler.fit_transform(result[dimensions])
+# for i in range(0, scaled_dim.shape[0]):
+#     result[dimensions[i]] = list(scaled_dim[i])
 print("   * Dimensions normalized in %.1f seconds." %(timelib.time()-start_time))
 
 start_time = timelib.time()

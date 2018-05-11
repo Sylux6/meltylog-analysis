@@ -61,6 +61,7 @@ dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seco
 range_n_clusters = [2, 3, 4, 5]
 max_components = len(dimensions)
 threshold_explained_variance = 0.90
+include_pairwises = True
 
 ###############################################################################
 # READING DATA FILES
@@ -72,7 +73,7 @@ print("        "+log_filename+" loaded ({} rows) in {:.1f} seconds.".format(log.
 start_time = timelib.time()
 print("        Loading "+urls_filename+" ...", end="\r")
 urls = pd.read_csv(urls_filename, sep=',', na_filter=False, low_memory=False)
-print("        "+urls_filename+" loaded ({} rows) in {:.1f} seconds.".format(log.shape[0], timelib.time()-start_time))
+print("        "+urls_filename+" loaded ({} rows) in {:.1f} seconds.".format(urls.shape[0], timelib.time()-start_time))
 start_time = timelib.time()
 print("        Loading "+session_filename+" ...", end="\r")
 sessions = pd.read_csv(session_filename, sep=',')
@@ -85,10 +86,27 @@ sessions = sessions[sessions.requests > 6]
 print("\n   * Sessions filtered: {} rows".format(sessions.shape[0]))
 
 normalized_dimensions = list(map(lambda x: "normalized_"+x, dimensions)) # normalized dimensions labels list
+weighted_dimensions = list(map(lambda x: "weighted_"+x, dimensions)) # weighted dimensions labels list
 
 print("   > range_n_clusters: {}".format(range_n_clusters))
+print("   > include pairwises: {}".format(include_pairwises))
 
-# LaTeX init
+###############################################################################
+# WEIGHTS
+start_time = timelib.time()
+print("\n   * Weighting dimensions ...", end="\r")
+cv = {}
+cv_tot = 0
+w = {}
+for d in dimensions:
+    cv[d] = sessions[d].var() / sessions[d].mean()
+    cv_tot = cv_tot + cv[d]
+for d in dimensions:
+    w[d] = cv[d] / cv_tot
+for d in dimensions:
+    sessions["weighted_"+d] = sqrt(w[d]) * sessions["normalized_"+d]
+print("   * Dimensions weighted in {:.1f} seconds.".format((timelib.time()-start_time)))
+
 latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\usetheme{Warsaw}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{graphicx}\n\\usepackage[english]{babel}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathrsfs}\n\\usepackage{verbatim}\n\\usepackage{lmodern}\n\\usepackage{listings}\n\\usepackage{caption}\n\\usepackage{multicol}\n\\usepackage{epsfig}\n\\usepackage{array}\n\\usepackage{tikz}\n\\usepackage{collcell}\n\n\\definecolor{mygreen}{rgb}{0,0.6,0}\n\\setbeamertemplate{headline}{}{}\n\\addtobeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}\n\n\\title{Melty Clusterization}\n\\author{Sylvain Ung}\n\\institute{Laboratoire d'informatique de Paris 6}\n\\date{\\today}\n\n\\begin{document}\n\\setbeamertemplate{section page}\n{\n  \\begin{centering}\n    \\vskip1em\\par\n    \\begin{beamercolorbox}[sep=4pt,center]{part title}\n      \\usebeamerfont{section title}\\insertsection\\par\n    \\end{beamercolorbox}\n  \\end{centering}\n}\n\n\\begin{frame}\n    \\titlepage\n\\end{frame}\n\n")
 
 latex_output.write("\\begin{frame}{Clustering}\n    Clustering on "+str(len(dimensions))+" dimensions:\n    \\begin{multicols}{2}\n        \\footnotesize{\n            \\begin{enumerate}\n")
@@ -101,7 +119,7 @@ latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols
 
 start_time = timelib.time()
 print("\n   * Computing correlation ...", end="\r")
-corr=sessions[normalized_dimensions].corr()
+corr=sessions[weighted_dimensions].corr()
 fig, ax = plt.subplots()
 fig.set_size_inches([ 14, 14])
 matrix = corr.values
@@ -122,7 +140,6 @@ print("   * Correlation computed in {:.1f} seconds.".format((timelib.time()-star
 
 ###############################################################################
 # PCA
-
 start_time = timelib.time()
 print("\n   * Computing PCA explained variance ...", end="\r")
 pca = PCA(n_components=max_components)
@@ -207,33 +224,34 @@ for n in range_n_clusters:
     ########################################################
     # Scatterplot in pairwise original feature space pairs #
     ########################################################
-    count = 0 # pairwises counter
-    latex_output.write("\\begin{frame}{Scatterplot in pairwise original feature space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
-    centroids_inverse_pca = pca.inverse_transform(kmeans.cluster_centers_)
-    for ftr1 in range(len(dimensions)):
-        for ftr2 in range(ftr1+1,len(dimensions)):
-            fig=plt.figure(1)
-            plt.scatter(sessions[normalized_dimensions].values[:,ftr1],sessions[normalized_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
-            plt.axis('equal')
-            plt.xlabel(dimensions[ftr1])
-            plt.ylabel(dimensions[ftr2])
-            plt.grid(True)
-            # Labeling the clusters
-            plt.scatter(centroids_inverse_pca[:,ftr1], centroids_inverse_pca[:, ftr2], marker='o',
-                        c="white", alpha=1, s=200, edgecolor='k')
-            for i, c in enumerate(centroids_inverse_pca):
-                plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
-                            s=50, edgecolor='k')
-            plt.savefig('Latex/pca/pairwise/pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
-            plt.clf()
-            if count%5 == 4:
-                latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
-            else:
-                latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
-            count = count + 1
-    latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+    if include_pairwises:
+        count = 0 # pairwises counter
+        latex_output.write("\\begin{frame}{Scatterplots in pairwise original feature space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
+        centroids_inverse_pca = pca.inverse_transform(kmeans.cluster_centers_)
+        for ftr1 in range(len(dimensions)):
+            for ftr2 in range(ftr1+1,len(dimensions)):
+                fig=plt.figure(1)
+                plt.scatter(sessions[normalized_dimensions].values[:,ftr1],sessions[normalized_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
+                plt.axis('equal')
+                plt.xlabel(dimensions[ftr1])
+                plt.ylabel(dimensions[ftr2])
+                plt.grid(True)
+                # Labeling the clusters
+                plt.scatter(centroids_inverse_pca[:,ftr1], centroids_inverse_pca[:, ftr2], marker='o',
+                            c="white", alpha=1, s=200, edgecolor='k')
+                for i, c in enumerate(centroids_inverse_pca):
+                    plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
+                                s=50, edgecolor='k')
+                plt.savefig('Latex/pca/pairwise/pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
+                plt.clf()
+                if count%5 == 4:
+                    latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
+                else:
+                    latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
+                count = count + 1
+        latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
 
-    kmeans = KMeans(n_clusters=n, random_state=0).fit(sessions[normalized_dimensions].values)
+    kmeans = KMeans(n_clusters=n, random_state=0).fit(sessions[weighted_dimensions].values)
     cluster_labels=kmeans.labels_
     sessions["cluster_id"] = cluster_labels
     num_cluster = sessions.cluster_id.unique()
