@@ -1,4 +1,3 @@
-
 import time as timelib
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -58,6 +57,7 @@ dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seco
 # dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
+lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
 range_n_clusters = [2, 3, 4, 5]
 max_components = len(dimensions)
 threshold_explained_variance = 0.90
@@ -90,6 +90,20 @@ weighted_dimensions = list(map(lambda x: "weighted_"+x, dimensions)) # weighted 
 
 print("   > range_n_clusters: {}".format(range_n_clusters))
 print("   > include pairwises: {}".format(include_pairwises))
+
+###############################################################################
+# NORMALIZATION
+start_time = timelib.time()
+print("\n   * Normalizing dimensions ...", end="\r")
+for d in dimensions:
+    if d in lognorm:
+        sessions["normalized_"+d] = sessions[d]+1 # here we need to shift our data for log normalization
+        sessions["normalized_"+d] = sessions["normalized_"+d].apply(lambda x: math.log(x))
+    else:
+        sessions["normalized_"+d] = sessions[d]
+scaler = StandardScaler()
+sessions[normalized_dimensions] = scaler.fit_transform(sessions[normalized_dimensions])
+print("   * Dimensions normalized in %.1f seconds." %(timelib.time()-start_time))
 
 ###############################################################################
 # WEIGHTS
@@ -145,7 +159,7 @@ print("\n   * Computing PCA explained variance ...", end="\r")
 pca = PCA(n_components=max_components)
 
 # Data in PCA coordinates: n_samples x n_components
-normalized_pca_data=pca.fit_transform(sessions[normalized_dimensions].values)
+normalized_pca_data=pca.fit_transform(sessions[weighted_dimensions].values)
 
 # selecting components that explain variance
 n_components_threshold=len(pca.explained_variance_ratio_[pca.explained_variance_ratio_.cumsum()<threshold_explained_variance])+1
@@ -165,7 +179,7 @@ latex_output.write("\\begin{frame}{PCA explained variance}\n    \\begin{center}\
 print("   * PCA explained variance computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
 pca = PCA(n_components=n_components_threshold)
-clustering_data=pca.fit_transform(sessions[normalized_dimensions].values)
+clustering_data=pca.fit_transform(sessions[weighted_dimensions].values)
 
 ###############################################################################
 # EXPLAINING PCA COMPONENTS
@@ -231,7 +245,7 @@ for n in range_n_clusters:
         for ftr1 in range(len(dimensions)):
             for ftr2 in range(ftr1+1,len(dimensions)):
                 fig=plt.figure(1)
-                plt.scatter(sessions[normalized_dimensions].values[:,ftr1],sessions[normalized_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
+                plt.scatter(sessions[weighted_dimensions].values[:,ftr1],sessions[weighted_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
                 plt.axis('equal')
                 plt.xlabel(dimensions[ftr1])
                 plt.ylabel(dimensions[ftr2])

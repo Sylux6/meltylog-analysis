@@ -212,27 +212,6 @@ print("        Requested_url popularity computed in %.1f seconds." %(timelib.tim
 result = session_data.sort_values(by="global_session_id", ascending=True)
 result["timespan"] = result.timespan.apply(lambda x: x.seconds)
 
-# normalization + filtering
-dimensions = ["requests","timespan","requested_category_richness","requested_topic_richness","star_chain_like","bifurcation","entropy","standard_deviation","popularity_mean","inter_req_mean_seconds","read_pages", "variance"]
-dimensions = dimensions + urldata.topic.drop_duplicates().apply(lambda x: x+"_proportion").tolist()
-lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
-start_time = timelib.time()
-print("\n   * Normalizing dimensions ...", end="\r")
-for d in dimensions:
-    if d in lognorm:
-        result["normalized_"+d] = result[d]+1 # here we need to shift our data for log normalization
-        result["normalized_"+d] = result["normalized_"+d].apply(lambda x: math.log(x))
-    else:
-        result["normalized_"+d] = result[d]
-dimensions = list(map(lambda x: "normalized_"+x, dimensions))
-result = pd.notnull(result)
-scaler = StandardScaler()
-result[dimensions] = scaler.fit_transform(result[dimensions])
-# scaled_dim = scaler.fit_transform(result[dimensions])
-# for i in range(0, scaled_dim.shape[0]):
-#     result[dimensions[i]] = list(scaled_dim[i])
-print("   * Dimensions normalized in %.1f seconds." %(timelib.time()-start_time))
-
 start_time = timelib.time()
 print("\n   * Generating 'Outputs/Sessions.csv' ...", end="\r")
 result.to_csv(r"Outputs/_Sessions.csv", index=None)
