@@ -52,15 +52,17 @@ print("\n   * 'Latex' directory created.")
 # dim1
 dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
 # dim2
-# dimensions = ["star_chain_like", "bifurcation"]
+# dimensions = ["star_chain_like"]
 # dim3
 # dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
+# dim1+dim2
+# dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like"]
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
 range_n_clusters = [2, 3, 4, 5]
 max_components = len(dimensions)
-threshold_explained_variance = 0.90
+threshold_explained_variance = 0.99
 include_pairwises = True
 
 ###############################################################################
@@ -82,7 +84,7 @@ sessions.fillna(0, inplace=True)
 
 ###############################################################################
 # FILTER
-sessions = sessions[sessions.requests > 6]
+sessions = sessions[sessions.requests >= 6]
 print("\n   * Sessions filtered: {} rows".format(sessions.shape[0]))
 
 normalized_dimensions = list(map(lambda x: "normalized_"+x, dimensions)) # normalized dimensions labels list
@@ -128,80 +130,82 @@ for d in dimensions:
     latex_output.write("                \\item "+d.replace("_", "\_")+"\n")
 latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols}\n\\end{frame}\n\n")
 
-###############################################################################
-# CORRELATION ANALYSIS
+if max_components > 1:
+    ###############################################################################
+    # CORRELATION ANALYSIS
 
-start_time = timelib.time()
-print("\n   * Computing correlation ...", end="\r")
-corr=sessions[weighted_dimensions].corr()
-fig, ax = plt.subplots()
-fig.set_size_inches([ 14, 14])
-matrix = corr.values
-ax.matshow(matrix, cmap=plt.cm.coolwarm)
-for i in range(matrix.shape[0]):
-    for j in range(matrix.shape[0]):
-        c = matrix[j,i]
-        ax.text(i, j, '%0.2f'%c, va='center', ha='center')
-ax.set_xticks(range(len(dimensions)))
-ax.set_yticks(range(len(dimensions)))
-ax.set_xticklabels(dimensions)
-ax.set_yticklabels(dimensions)
-plt.tick_params(axis='both', which='both', labelsize=8)
-plt.savefig('Latex/pca/corr_before_pca.png', format='png')
-plt.clf()
-latex_output.write("\\begin{frame}{Correlation analysis}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/corr_before_pca}\n    \\end{center}\n\\end{frame}\n\n")
-print("   * Correlation computed in {:.1f} seconds.".format((timelib.time()-start_time)))
+    start_time = timelib.time()
+    print("\n   * Computing correlation ...", end="\r")
+    corr=sessions[weighted_dimensions].corr()
+    fig, ax = plt.subplots()
+    fig.set_size_inches([ 14, 14])
+    matrix = corr.values
+    ax.matshow(matrix, cmap=plt.cm.coolwarm)
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[0]):
+            c = matrix[j,i]
+            ax.text(i, j, '%0.2f'%c, va='center', ha='center')
+    ax.set_xticks(range(len(dimensions)))
+    ax.set_yticks(range(len(dimensions)))
+    ax.set_xticklabels(dimensions)
+    ax.set_yticklabels(dimensions)
+    plt.tick_params(axis='both', which='both', labelsize=8)
+    plt.savefig('Latex/pca/corr_before_pca.png', format='png')
+    plt.clf()
+    plt.close()
+    latex_output.write("\\begin{frame}{Correlation analysis}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/corr_before_pca}\n    \\end{center}\n\\end{frame}\n\n")
+    print("   * Correlation computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
-###############################################################################
-# PCA
-start_time = timelib.time()
-print("\n   * Computing PCA explained variance ...", end="\r")
-pca = PCA(n_components=max_components)
+    ###############################################################################
+    # PCA
+    start_time = timelib.time()
+    print("\n   * Computing PCA explained variance ...", end="\r")
+    pca = PCA(n_components=max_components)
 
-# Data in PCA coordinates: n_samples x n_components
-normalized_pca_data=pca.fit_transform(sessions[weighted_dimensions].values)
+    # Data in PCA coordinates: n_samples x n_components
+    weighted_pca_data=pca.fit_transform(sessions[weighted_dimensions].values)
 
-# selecting components that explain variance
-n_components_threshold=len(pca.explained_variance_ratio_[pca.explained_variance_ratio_.cumsum()<threshold_explained_variance])+1
+    # selecting components that explain variance
+    n_components_threshold=len(pca.explained_variance_ratio_[pca.explained_variance_ratio_.cumsum()<threshold_explained_variance])+1
 
-plt.figure()
-plt.plot(range(1,max_components+1),100.0*pca.explained_variance_ratio_, 'r+')
-plt.axis([0, max_components+1, 0, 100])
-plt.gca().axvline(x=n_components_threshold,c='b',alpha=0.25)
-plt.text(n_components_threshold+0.5,75,
-         '%0.2f%% explained variancce.'%(100*pca.explained_variance_ratio_.cumsum()[n_components_threshold-1]))
-plt.xlabel('Component')
-plt.ylabel('% Explained Variance')
-plt.grid()
-plt.savefig('Latex/pca/explained_variance_ratio.png')
-plt.clf()
-latex_output.write("\\begin{frame}{PCA explained variance}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/explained_variance_ratio}\n    \\end{center}\n\\end{frame}\n\n")
-print("   * PCA explained variance computed in {:.1f} seconds.".format((timelib.time()-start_time)))
+    plt.figure()
+    plt.plot(range(1,max_components+1),100.0*pca.explained_variance_ratio_, 'r+')
+    plt.axis([0, max_components+1, 0, 100])
+    plt.gca().axvline(x=n_components_threshold,c='b',alpha=0.25)
+    plt.text(n_components_threshold+0.5,75,
+            '%0.2f%% explained variancce.'%(100*pca.explained_variance_ratio_.cumsum()[n_components_threshold-1]))
+    plt.xlabel('Component')
+    plt.ylabel('% Explained Variance')
+    plt.grid()
+    plt.savefig('Latex/pca/explained_variance_ratio.png')
+    plt.clf()
+    plt.close()
+    latex_output.write("\\begin{frame}{PCA explained variance}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/explained_variance_ratio}\n    \\end{center}\n\\end{frame}\n\n")
+    print("   * PCA explained variance computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
-pca = PCA(n_components=n_components_threshold)
-clustering_data=pca.fit_transform(sessions[weighted_dimensions].values)
+    pca = PCA(n_components=n_components_threshold)
+    clustering_data=pca.fit_transform(sessions[weighted_dimensions].values)
 
-###############################################################################
-# EXPLAINING PCA COMPONENTS
+    ###############################################################################
+    # EXPLAINING PCA COMPONENTS
 
-fig, ax = plt.subplots()
-fig.set_size_inches([ 14, 14])
-matrix = pca.components_[:n_components_threshold,:].T
-ax.matshow(matrix, cmap=plt.cm.coolwarm)
-for i in range(matrix.shape[0]):
-    for j in range(matrix.shape[1]):
-        c = matrix[i,j]
-        ax.text(j,i, '%0.2f'%c, va='center', ha='center')
-ax.set_xticks(range(n_components_threshold))
-ax.set_yticks(range(len(dimensions)))
-ax.set_xticklabels(['PC-%d'%n for n in range(1,n_components_threshold+1)])
-ax.set_yticklabels(dimensions)
-plt.savefig('Latex/pca/components.png', format='png')
-plt.clf()
-del matrix
-latex_output.write("\\begin{frame}{PCA components}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/components}\n    \\end{center}\n\\end{frame}\n\n")
-
-silhouette_index=[]
+    fig, ax = plt.subplots()
+    fig.set_size_inches([ 14, 14])
+    matrix = pca.components_[:n_components_threshold,:].T
+    ax.matshow(matrix, cmap=plt.cm.coolwarm)
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            c = matrix[i,j]
+            ax.text(j,i, '%0.2f'%c, va='center', ha='center')
+    ax.set_xticks(range(n_components_threshold))
+    ax.set_yticks(range(len(dimensions)))
+    ax.set_xticklabels(['PC-%d'%n for n in range(1,n_components_threshold+1)])
+    ax.set_yticklabels(dimensions)
+    plt.savefig('Latex/pca/components.png', format='png')
+    plt.clf()
+    plt.close()
+    del matrix
+    latex_output.write("\\begin{frame}{PCA components}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=\\textheight, keepaspectratio]{pca/components}\n    \\end{center}\n\\end{frame}\n\n")
 
 ###############################################################################
 # CLUSTERING
@@ -215,55 +219,127 @@ for n in range_n_clusters:
     pathlib.Path("Latex/Graphs/"+str(n)).mkdir(parents=True, exist_ok=True)
     pathlib.Path("Latex/Clusters/"+str(n)).mkdir(parents=True, exist_ok=True)
 
-    ###############################################################################
-    # Scatterplot
-    kmeans=KMeans(n_clusters=n)
-    cluster_labels=kmeans.fit_predict(clustering_data)
-    fig=plt.figure(1)
-    plt.scatter(clustering_data[:,0],clustering_data[:,1], c=kmeans.labels_, alpha=0.1)
-    plt.axis('equal')
-    plt.xlabel('PC-1')
-    plt.ylabel('PC-2')
-    plt.grid(True)
-    # Labeling the clusters
-    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], marker='o',
-                c="white", alpha=1, s=200, edgecolor='k')
-    for i, c in enumerate(kmeans.cluster_centers_):
-        plt.scatter(c[0], c[1], marker='$%d$' % i, alpha=1,
-                    s=50, edgecolor='k')
-    plt.savefig('Latex/pca/pca_scatterplot_cluster_%d.png'%n)
-    plt.clf()
-    latex_output.write("\\begin{frame}{PCA clustering -- "+str(n)+" clusters}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pca_scatterplot_cluster_"+str(n)+"}\n    \\end{center}\n\\end{frame}\n\n")
+    if max_components > 1:
+        ###############################################################################
+        # Scatterplot
+        kmeans=KMeans(n_clusters=n)
+        cluster_labels=kmeans.fit_predict(clustering_data)
+        fig=plt.figure()
+        plt.scatter(clustering_data[:,0],clustering_data[:,1], c=kmeans.labels_, alpha=0.1)
+        plt.axis('equal')
+        plt.xlabel('PC-1')
+        plt.ylabel('PC-2')
+        plt.grid(True)
+        # Labeling the clusters
+        plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], marker='o',
+                    c="white", alpha=1, s=200, edgecolor='k')
+        for i, c in enumerate(kmeans.cluster_centers_):
+            plt.scatter(c[0], c[1], marker='$%d$' % i, alpha=1,
+                        s=50, edgecolor='k')
+        plt.savefig('Latex/pca/pca_scatterplot_cluster_%d.png'%n)
+        plt.clf()
+        plt.close()
+        latex_output.write("\\begin{frame}{PCA clustering -- "+str(n)+" clusters}\n    \\begin{center}\n        \\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pca_scatterplot_cluster_"+str(n)+"}\n    \\end{center}\n\\end{frame}\n\n")
 
-    ########################################################
-    # Scatterplot in pairwise original feature space pairs #
-    ########################################################
-    if include_pairwises:
-        count = 0 # pairwises counter
-        latex_output.write("\\begin{frame}{Scatterplots in pairwise original feature space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
-        centroids_inverse_pca = pca.inverse_transform(kmeans.cluster_centers_)
-        for ftr1 in range(len(dimensions)):
-            for ftr2 in range(ftr1+1,len(dimensions)):
-                fig=plt.figure(1)
-                plt.scatter(sessions[weighted_dimensions].values[:,ftr1],sessions[weighted_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
-                plt.axis('equal')
-                plt.xlabel(dimensions[ftr1])
-                plt.ylabel(dimensions[ftr2])
-                plt.grid(True)
-                # Labeling the clusters
-                plt.scatter(centroids_inverse_pca[:,ftr1], centroids_inverse_pca[:, ftr2], marker='o',
-                            c="white", alpha=1, s=200, edgecolor='k')
-                for i, c in enumerate(centroids_inverse_pca):
-                    plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
-                                s=50, edgecolor='k')
-                plt.savefig('Latex/pca/pairwise/pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
-                plt.clf()
-                if count%5 == 4:
-                    latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
-                else:
-                    latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
-                count = count + 1
-        latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+        ########################################################
+        # Scatterplot in pairwise original feature space pairs #
+        ########################################################
+        if include_pairwises:
+            start_time2 = timelib.time()
+            print("          Plotting pairwises...", end="\r")
+            # weighted space
+            count = 0 # pairwises counter
+            latex_output.write("\\begin{frame}{Scatterplots in pairwise weighted features space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
+            centroids_inverse_pca = pca.inverse_transform(kmeans.cluster_centers_)
+            for ftr1 in range(len(dimensions)):
+                for ftr2 in range(ftr1+1,len(dimensions)):
+                    fig=plt.figure()
+                    plt.scatter(sessions[weighted_dimensions].values[:,ftr1],sessions[weighted_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
+                    plt.axis('equal')
+                    plt.xlabel(dimensions[ftr1])
+                    plt.ylabel(dimensions[ftr2])
+                    plt.grid(True)
+                    # Labeling the clusters
+                    plt.scatter(centroids_inverse_pca[:,ftr1], centroids_inverse_pca[:, ftr2], marker='o',
+                                c="white", alpha=1, s=200, edgecolor='k')
+                    for i, c in enumerate(centroids_inverse_pca):
+                        plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
+                                    s=50, edgecolor='k')
+                    plt.savefig('Latex/pca/pairwise/weighted_pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
+                    plt.clf()
+                    plt.close()
+                    if count%5 == 4:
+                        latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/weighted_pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
+                    else:
+                        latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/weighted_pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
+                    count = count + 1
+            latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+
+            # normalized space
+            count = 0 # pairwises counter
+            latex_output.write("\\begin{frame}{Scatterplots in pairwise normalized features space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
+            centroids_inverse_weighted = centroids_inverse_pca
+            for i in range(0, len(centroids_inverse_weighted)):
+                for j in range(0, len(centroids_inverse_weighted[i])):
+                    centroids_inverse_weighted[i][j] = centroids_inverse_weighted[i][j] / sqrt(w[dimensions[j]])
+            for ftr1 in range(len(dimensions)):
+                for ftr2 in range(ftr1+1,len(dimensions)):
+                    fig=plt.figure()
+                    plt.scatter(sessions[normalized_dimensions].values[:,ftr1],sessions[normalized_dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
+                    plt.axis('equal')
+                    plt.xlabel(dimensions[ftr1])
+                    plt.ylabel(dimensions[ftr2])
+                    plt.grid(True)
+                    # Labeling the clusters
+                    plt.scatter(centroids_inverse_weighted[:,ftr1], centroids_inverse_weighted[:, ftr2], marker='o',
+                                c="white", alpha=1, s=200, edgecolor='k')
+                    for i, c in enumerate(centroids_inverse_weighted):
+                        plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
+                                    s=50, edgecolor='k')
+                    plt.savefig('Latex/pca/pairwise/normalized_pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
+                    plt.clf()
+                    plt.close()
+                    if count%5 == 4:
+                        latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/normalized_pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
+                    else:
+                        latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/normalized_pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
+                    count = count + 1
+            latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+
+            # original space
+            count = 0 # pairwises counter
+            latex_output.write("\\begin{frame}{Scatterplots in pairwise normalized features space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
+            centroids_inverse_normalized = centroids_inverse_weighted
+            for i in range(0, len(centroids_inverse_normalized)):
+                for j in range(0, len(centroids_inverse_normalized[i])):
+                    if dimensions[j] in lognorm:
+                        centroids_inverse_normalized[i][j] = math.exp(centroids_inverse_normalized[i][j])
+                        centroids_inverse_normalized[i][j] = centroids_inverse_normalized[i][j] - 1
+            centroids_inverse_normalized = scaler.inverse_transform(centroids_inverse_normalized)
+            for ftr1 in range(len(dimensions)):
+                for ftr2 in range(ftr1+1,len(dimensions)):
+                    fig=plt.figure()
+                    plt.scatter(sessions[dimensions].values[:,ftr1],sessions[dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
+                    plt.axis('equal')
+                    plt.xlabel(dimensions[ftr1])
+                    plt.ylabel(dimensions[ftr2])
+                    plt.grid(True)
+                    # Labeling the clusters
+                    plt.scatter(centroids_inverse_normalized[:,ftr1], centroids_inverse_normalized[:, ftr2], marker='o',
+                                c="white", alpha=1, s=200, edgecolor='k')
+                    for i, c in enumerate(centroids_inverse_normalized):
+                        plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
+                                    s=50, edgecolor='k')
+                    plt.savefig('Latex/pca/pairwise/original_pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
+                    plt.clf()
+                    plt.close()
+                    if count%5 == 4:
+                        latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/original_pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} \\\\\n")
+                    else:
+                        latex_output.write("\\includegraphics[width=\\textwidth, height=0.8\\textheight, keepaspectratio]{pca/pairwise/original_pca_scatterplot_"+str(n)+"_clusters_ftr1_"+str(ftr1)+"_ftr2_"+str(ftr2)+"} & ")
+                    count = count + 1
+            latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+            print("          Pairwises plotted in {:.1f} seconds.".format((timelib.time()-start_time2)))
 
     kmeans = KMeans(n_clusters=n, random_state=0).fit(sessions[weighted_dimensions].values)
     cluster_labels=kmeans.labels_
@@ -271,7 +347,7 @@ for n in range_n_clusters:
     num_cluster = sessions.cluster_id.unique()
     num_cluster.sort()
 
-    # compute centroids
+    # compute centroids for recap
     centroids = pd.DataFrame(columns=["cluster_id"] + dimensions)
     centroids["cluster_id"] = num_cluster
     for dim in dimensions:

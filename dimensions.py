@@ -81,7 +81,7 @@ print("        Session IDs computed in %.1f seconds." %(timelib.time()-start_tim
 
 # remove parallel edges
 log = log.drop_duplicates(subset=["global_session_id", "referrer_url", "requested_url"])
-log.to_csv(r"Outputs/_MyLog.csv", index=None)
+log.to_csv(r"Outputs/MyLog.csv", index=None)
 print("        Parallel requests removed.")
 
 # Counting requests per session
@@ -214,7 +214,7 @@ result["timespan"] = result.timespan.apply(lambda x: x.seconds)
 
 start_time = timelib.time()
 print("\n   * Generating 'Outputs/Sessions.csv' ...", end="\r")
-result.to_csv(r"Outputs/_Sessions.csv", index=None)
+result.to_csv(r"Outputs/Sessions.csv", index=None)
 print("   * 'Outputs/Sessions.csv' generated in {:.1f} seconds.".format(timelib.time()-start_time))
 
 ###############
