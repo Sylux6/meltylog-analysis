@@ -85,6 +85,8 @@ sessions.fillna(0, inplace=True)
 ###############################################################################
 # FILTER
 sessions = sessions[sessions.requests >= 6]
+for d in lognorm:
+    sessions = sessions[sessions[d] > 0]
 print("\n   * Sessions filtered: {} rows".format(sessions.shape[0]))
 
 normalized_dimensions = list(map(lambda x: "normalized_"+x, dimensions)) # normalized dimensions labels list
@@ -251,6 +253,16 @@ for n in range_n_clusters:
             count = 0 # pairwises counter
             latex_output.write("\\begin{frame}{Scatterplots in pairwise weighted features space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
             centroids_inverse_pca = pca.inverse_transform(kmeans.cluster_centers_)
+
+            # compute original space centroids
+            centroids_inverse_normalized = centroids_inverse_pca.copy()
+            cluster_labels=kmeans.labels_
+            sessions["cluster_id"] = cluster_labels
+            num_cluster = sessions.cluster_id.unique()
+            for cluster_id in num_cluster:
+                for i in range(0, len(dimensions)):
+                    centroids_inverse_normalized[cluster_id][i] = sessions[sessions.cluster_id==cluster_id][dimensions[i]].mean()
+
             for ftr1 in range(len(dimensions)):
                 for ftr2 in range(ftr1+1,len(dimensions)):
                     fig=plt.figure()
@@ -309,27 +321,22 @@ for n in range_n_clusters:
             # original space
             count = 0 # pairwises counter
             latex_output.write("\\begin{frame}{Scatterplots in pairwise normalized features space pairs}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}")
-            centroids_inverse_normalized = centroids_inverse_weighted
-            for i in range(0, len(centroids_inverse_normalized)):
-                for j in range(0, len(centroids_inverse_normalized[i])):
-                    if dimensions[j] in lognorm:
-                        centroids_inverse_normalized[i][j] = math.exp(centroids_inverse_normalized[i][j])
-                        centroids_inverse_normalized[i][j] = centroids_inverse_normalized[i][j] - 1
-            centroids_inverse_normalized = scaler.inverse_transform(centroids_inverse_normalized)
             for ftr1 in range(len(dimensions)):
                 for ftr2 in range(ftr1+1,len(dimensions)):
                     fig=plt.figure()
                     plt.scatter(sessions[dimensions].values[:,ftr1],sessions[dimensions].values[:,ftr2], c=kmeans.labels_, alpha=0.1)
-                    plt.axis('equal')
                     plt.xlabel(dimensions[ftr1])
                     plt.ylabel(dimensions[ftr2])
                     plt.grid(True)
                     # Labeling the clusters
-                    plt.scatter(centroids_inverse_normalized[:,ftr1], centroids_inverse_normalized[:, ftr2], marker='o',
-                                c="white", alpha=1, s=200, edgecolor='k')
+                    plt.scatter(centroids_inverse_normalized[:,ftr1], centroids_inverse_normalized[:, ftr2], marker='o', c="white", alpha=1, s=200, edgecolor='k')
                     for i, c in enumerate(centroids_inverse_normalized):
-                        plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,
-                                    s=50, edgecolor='k')
+                        plt.scatter(c[ftr1], c[ftr2], marker='$%d$' % i, alpha=1,s=50, edgecolor='k')
+                    # logscale
+                    if dimensions[ftr1] in lognorm:
+                        plt.gca().set_xscale('log')
+                    if dimensions[ftr2] in lognorm:
+                        plt.gca().set_yscale('log')
                     plt.savefig('Latex/pca/pairwise/original_pca_scatterplot_%d_clusters_ftr1_%d_ftr2_%d.png'%(n,ftr1,ftr2))
                     plt.clf()
                     plt.close()
