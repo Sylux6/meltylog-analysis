@@ -50,13 +50,13 @@ print("\n   * 'Latex' directory created.")
 ###########
 # VARIABLES
 # dim1
-dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
+# dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages"]
 # dim2
 # dimensions = ["star_chain_like"]
 # dim3
 # dimensions = ["popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 # dim1+dim2
-# dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like"]
+dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like"]
 # dim1+dim2+dim3
 # dimensions = ["requests", "timespan", "standard_deviation", "inter_req_mean_seconds", "read_pages", "star_chain_like", "bifurcation", "popularity_mean", "entropy", "requested_category_richness", "requested_topic_richness", 'TV_proportion', 'Series_proportion', 'News_proportion', 'Celebrities_proportion', 'VideoGames_proportion', 'Music_proportion', 'Movies_proportion', 'Sport_proportion', 'Comic_proportion', 'Look_proportion', 'Other_proportion', 'Humor_proportion', 'Student_proportion', 'Events_proportion', 'Wellbeing_proportion', 'None_proportion', 'Food_proportion', 'Tech_proportion']
 lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
@@ -127,7 +127,7 @@ print("   * Dimensions weighted in {:.1f} seconds.".format((timelib.time()-start
 
 latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\usetheme{Warsaw}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{graphicx}\n\\usepackage[english]{babel}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathrsfs}\n\\usepackage{verbatim}\n\\usepackage{lmodern}\n\\usepackage{listings}\n\\usepackage{caption}\n\\usepackage{multicol}\n\\usepackage{epsfig}\n\\usepackage{array}\n\\usepackage{tikz}\n\\usepackage{collcell}\n\n\\definecolor{mygreen}{rgb}{0,0.6,0}\n\\setbeamertemplate{headline}{}{}\n\\addtobeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}\n\n\\title{Melty Clusterization}\n\\author{Sylvain Ung}\n\\institute{Laboratoire d'informatique de Paris 6}\n\\date{\\today}\n\n\\begin{document}\n\\setbeamertemplate{section page}\n{\n  \\begin{centering}\n    \\vskip1em\\par\n    \\begin{beamercolorbox}[sep=4pt,center]{part title}\n      \\usebeamerfont{section title}\\insertsection\\par\n    \\end{beamercolorbox}\n  \\end{centering}\n}\n\n\\begin{frame}\n    \\titlepage\n\\end{frame}\n\n")
 
-latex_output.write("\\begin{frame}{Clustering}\n    Clustering on "+str(len(dimensions))+" dimensions:\n    \\begin{multicols}{2}\n        \\footnotesize{\n            \\begin{enumerate}\n")
+latex_output.write("\\begin{frame}{Clustering}\n    Clustering on "+str(len(dimensions))+" dimension(s):\n    \\begin{multicols}{2}\n        \\footnotesize{\n            \\begin{enumerate}\n")
 for d in dimensions:
     latex_output.write("                \\item "+d.replace("_", "\_")+"\n")
 latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols}\n\\end{frame}\n\n")
