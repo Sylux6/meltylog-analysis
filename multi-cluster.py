@@ -59,8 +59,8 @@ if len(list(set(dimensions_1) & set(dimensions_2))) > 0:
     quit()
 
 lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
-n_clusters_1 = 3
-n_clusters_2 = 2
+n_clusters_1 = 5
+n_clusters_2 = 3
 
 ###############################################################################
 # READING DATA FILES
@@ -193,12 +193,19 @@ for dim in dimensions_1 + dimensions_2:
         mean.append(sessions[sessions.global_cluster_id==cluster_id][dim].mean())
     centroids[dim] = mean
 
-latex_output.write("\\begin{frame}{Clustering: "+str(n_clusters_1)+"x"+str(n_clusters_2)+" clusters}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster0}")
-for i in range(1, 10):
+if n_clusters_1*n_clusters_2 > 10:
+    resizebox = ".8"
+else:
+    resizebox = ""
+latex_output.write("\\begin{frame}{Clustering: "+str(n_clusters_1)+"x"+str(n_clusters_2)+" clusters}\n    \\begin{center}\n        \\resizebox{"+resizebox+"\\textwidth}{!}{\n            \\begin{tabular}{ccccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster0}")
+for i in range(1, 15):
     if i >= n_clusters_1*n_clusters_2: # no clusters left
         break
     if i == 5: # second row
         latex_output.write(" \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster5}")
+        continue
+    elif i == 10: # second row
+        latex_output.write(" \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster10}")
         continue
     latex_output.write(" & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+str(i)+"}")
 latex_output.write("\n            \\end{tabular}\n        }\n\n        \\begin{columns}\n            \\begin{column}{.65\\textwidth}\n                \\begin{center}\n                \\scalebox{0.25}{\n")
