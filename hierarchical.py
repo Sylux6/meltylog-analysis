@@ -192,6 +192,28 @@ for dim in dimensions_1 + dimensions_2:
         mean.append(sessions[sessions.global_cluster_id==cluster_id][dim].mean())
     centroids[dim] = mean
 
+# generating cluster mosaic
+ordered_list = list()
+span = {}
+tmp = centroids.sort_values("timespan")
+ordered_list = ordered_list + list((tmp.iloc[:3,:].sort_values("star_chain_like").global_cluster_id.values))
+ordered_list = ordered_list + list((tmp.iloc[3:6,:].sort_values("star_chain_like").global_cluster_id.values))
+ordered_list = ordered_list + list((tmp.iloc[6:9,:].sort_values("star_chain_like").global_cluster_id.values))
+for cluster_id in ordered_list:
+    span[cluster_id] = sessions[sessions.global_cluster_id==cluster_id].timespan.max()
+for i in range(0, len(ordered_list)):
+    if i < 3:
+        span[ordered_list[i]] = max(span[ordered_list[0]], span[ordered_list[1]], span[ordered_list[2]])
+    elif i < 6:
+        span[ordered_list[i]] = max(span[ordered_list[3]], span[ordered_list[4]], span[ordered_list[5]])
+    else:
+        span[ordered_list[i]] = max(span[ordered_list[6]], span[ordered_list[7]], span[ordered_list[8]])
+for cluster_id in ordered_list:
+    cluster_sessions = sessions[sessions.global_cluster_id == cluster_id].global_session_id.unique()
+    cluster_log = log[log.global_session_id.isin(cluster_sessions)]
+    plot_sessions_bis(cluster_log, 'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/_cluster%d.png'%cluster_id, cluster_id, N_max_sessions=5, max_time=span[cluster_id], time_resolution=None, mark_requests=False)
+latex_output.write("\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[0])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[1])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[2])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[3])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[4])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[5])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[6])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[7])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[8])+".png}\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+
 if n_clusters_1*n_clusters_2 > 10:
     resizebox = ".8"
 else:
@@ -227,15 +249,15 @@ for dim in dimensions_1 + dimensions_2:
     latex_output.write(" \\\\\n                        \\hline\n")
 latex_output.write("                    \\end{tabular}\n                }\n                \\end{center}\n            \\end{column}\n            \\begin{column}{.35\\textwidth}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/palette_topic}\n            \\end{column}\n        \\end{columns}\n    \\end{center}\n\\end{frame}\n\n")
 
+# boxplot
+
+
 # display
 for cluster_id in num_cluster:
     print("          Producing display of sessions for cluster %d"%cluster_id,end="\r") 
     cluster_sessions = sessions[sessions.global_cluster_id == cluster_id].global_session_id.unique()
     cluster_log = log[log.global_session_id.isin(cluster_sessions)]
-    sessions_id = plot_sessions(cluster_log,'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/cluster%d.png'%cluster_id, cluster_id,
-                labels=list(log.requested_topic.unique()),
-                N_max_sessions=10,field="requested_topic",
-                max_time=None,time_resolution=None,mark_requests=False)
+    sessions_id = plot_sessions(cluster_log,'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/cluster%d.png'%cluster_id, cluster_id, labels=list(log.requested_topic.unique()), N_max_sessions=10,field="requested_topic", max_time=None,time_resolution=None,mark_requests=False)
 
     # graph
     session_draw(cluster_id, sessions_id, log, urls, category_list)
