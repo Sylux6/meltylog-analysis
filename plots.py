@@ -46,16 +46,19 @@ def alter_plot_palette(labels,filename):
  
 def plot_sessions(cluster_log, filename, cluster_id, labels,
                   N_max_sessions=10, field="category", width=0,
-                  max_time=None, time_resolution=None, mark_requests=False):
+                  max_time=None, time_resolution=None, mark_requests=False, sessions=[]):
     
     plot_log=cluster_log.copy(deep=True)
     
     # list of sessions
-    sessions = list(plot_log.global_session_id.unique())
-    if plot_log.shape[0]>N_max_sessions:
-        # random.shuffle(sessions)
-        sessions=sessions[:N_max_sessions]
-        # updating log
+    if not sessions:
+        sessions = list(plot_log.global_session_id.unique())
+        if plot_log.shape[0]>N_max_sessions:
+            # random.shuffle(sessions)
+            sessions=sessions[:N_max_sessions]
+            # updating log
+            plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
+    else:
         plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
     
     # Session data
@@ -77,7 +80,8 @@ def plot_sessions(cluster_log, filename, cluster_id, labels,
         padding_seconds=ceil(session_data.span_sec.max()/9.0)
         time_window_seconds=session_data.span_sec.max()+padding_seconds+1
     else:
-        time_window_seconds=max_time+1
+        padding_seconds=ceil(max_time/9.0)
+        time_window_seconds=max_time+padding_seconds+1
     
     # Values and colors
     # black + colormap
@@ -188,16 +192,19 @@ def plot_session_distributions(distributions,labels,filename):
 
 def plot_sessions_bis(cluster_log, filename, cluster_id, 
                   N_max_sessions=10, width=0,
-                  max_time=None, time_resolution=None, mark_requests=False):
+                  max_time=None, time_resolution=None, mark_requests=False, sessions=[]):
     
     plot_log=cluster_log.copy(deep=True)
     
     # list of sessions
-    sessions = list(plot_log.global_session_id.unique())
-    if plot_log.shape[0]>N_max_sessions:
-        # random.shuffle(sessions)
-        sessions=sessions[:N_max_sessions]
-        # updating log
+    if not sessions:
+        sessions = list(plot_log.global_session_id.unique())
+        if plot_log.shape[0]>N_max_sessions:
+            # random.shuffle(sessions)
+            sessions=sessions[:N_max_sessions]
+            # updating log
+            plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
+    else:
         plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
     
     # Session data
@@ -219,7 +226,8 @@ def plot_sessions_bis(cluster_log, filename, cluster_id,
         padding_seconds=ceil(session_data.span_sec.max()/9.0)
         time_window_seconds=session_data.span_sec.max()+padding_seconds+1
     else:
-        time_window_seconds=max_time+1
+        padding_seconds=ceil(max_time/9.0)
+        time_window_seconds=max_time+padding_seconds+1
     
     # Filling the matrix
     if width == 0:
@@ -275,7 +283,6 @@ def plot_sessions_bis(cluster_log, filename, cluster_id,
     # Gridlines based on minor ticks
     ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
     # Saving and closing
-    plt.tight_layout()
     g1 = plt.subplot(grid[:1999, 10000:11999])
     plt.axis('off')
     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[0])+".png")
