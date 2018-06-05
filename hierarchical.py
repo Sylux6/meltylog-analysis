@@ -146,10 +146,10 @@ latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\u
 
 latex_output.write("\\begin{frame}{Clustering}\n    Clustering on "+str(len(dimensions_1))+" dimension(s) ("+str(n_clusters_1)+" clusters):\n    \\begin{multicols}{2}\n        \\footnotesize{\n            \\begin{enumerate}\n")
 for d in dimensions_1:
-    latex_output.write("                \\item "+d.replace("_", "\_")+"\n")
+    latex_output.write("                \\item "+features_map(d)+"\n")
 latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols}\n    Clustering on "+str(len(dimensions_2))+" dimension(s) ("+str(n_clusters_2)+" clusters):\n    \\begin{multicols}{2}\n        \\footnotesize{\n            \\begin{enumerate}")
 for d in dimensions_2:
-    latex_output.write("                \\item "+d.replace("_", "\_")+"\n")
+    latex_output.write("                \\item "+features_map(d)+"\n")
 latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols}\n\\end{frame}\n\n")
 
 ###############################################################################
@@ -199,36 +199,42 @@ for c in num_cluster:
     list_sessions = list(sessions[sessions.global_cluster_id==c].global_session_id.unique())
     selected_sessions[c] = list(np.random.choice(list_sessions, size=5, replace=False))
 
-# generating cluster mosaic
-ordered_list = list()
+sorted_clusters = list()
 span = {}
 tmp = centroids.sort_values("timespan")
-ordered_list = ordered_list + list((tmp.iloc[:3,:].sort_values("star_chain_like").global_cluster_id.values))
-ordered_list = ordered_list + list((tmp.iloc[3:6,:].sort_values("star_chain_like").global_cluster_id.values))
-ordered_list = ordered_list + list((tmp.iloc[6:9,:].sort_values("star_chain_like").global_cluster_id.values))
-for cluster_id in ordered_list:
+sorted_clusters = sorted_clusters + list((tmp.iloc[:3,:].sort_values("star_chain_like").global_cluster_id.values))
+sorted_clusters = sorted_clusters + list((tmp.iloc[3:6,:].sort_values("star_chain_like").global_cluster_id.values))
+sorted_clusters = sorted_clusters + list((tmp.iloc[6:9,:].sort_values("star_chain_like").global_cluster_id.values))
+for cluster_id in sorted_clusters:
     span[cluster_id] = sessions[sessions.global_session_id.isin(selected_sessions[cluster_id])].timespan.max()
-for i in range(0, len(ordered_list)):
+for i in range(0, len(sorted_clusters)):
     if i < 3:
-        span[ordered_list[i]] = max(span[ordered_list[0]], span[ordered_list[1]], span[ordered_list[2]])
+        span[sorted_clusters[i]] = max(span[sorted_clusters[0]], span[sorted_clusters[1]], span[sorted_clusters[2]])
     elif i < 6:
-        span[ordered_list[i]] = max(span[ordered_list[3]], span[ordered_list[4]], span[ordered_list[5]])
+        span[sorted_clusters[i]] = max(span[sorted_clusters[3]], span[sorted_clusters[4]], span[sorted_clusters[5]])
     else:
-        span[ordered_list[i]] = max(span[ordered_list[6]], span[ordered_list[7]], span[ordered_list[8]])
-for cluster_id in ordered_list:
+        span[sorted_clusters[i]] = max(span[sorted_clusters[6]], span[sorted_clusters[7]], span[sorted_clusters[8]])
+# sessions["global_cluster_id"] = sessions.global_cluster_id.map(lambda x: x+100)
+# sorted_clusters = list(map(lambda x: x+100, sorted_clusters))
+# for i in range(0, len(sorted_clusters)):
+#     sessions.global_cluster_id.replace(sorted_clusters[i], i+1, inplace=True)
+# sorted_clusters = list(map(lambda x: x+100, sorted_clusters))
+
+# generating cluster mosaic
+for cluster_id in sorted_clusters:
     cluster_sessions = sessions[sessions.global_cluster_id == cluster_id].global_session_id.unique()
     cluster_log = log[log.global_session_id.isin(cluster_sessions)]
     plot_sessions_bis(cluster_log, 'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/_cluster%d.png'%cluster_id, cluster_id, N_max_sessions=5, max_time=span[cluster_id], time_resolution=None, mark_requests=False, sessions=selected_sessions[cluster_id])
-latex_output.write("\\section{Mosaic}\n\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\scalebox{.25}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[0])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[1])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[2])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[3])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[4])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[5])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[6])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[7])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(ordered_list[8])+".png}\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+latex_output.write("\\section{Mosaic}\n\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\scalebox{.25}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[0])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[1])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[2])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[3])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[4])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[5])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[6])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[7])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[8])+".png}\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
 
 # boxplot
 for dim in dimensions_1+dimensions_2:
     box = pd.DataFrame()
-    for cluster_id in ordered_list:
+    for cluster_id in sorted_clusters:
         newcol = pd.DataFrame({"Cluster "+str(cluster_id): sessions[sessions.global_cluster_id==cluster_id][dim]})
         box = pd.concat([box, newcol], axis=1)
     box.boxplot(showfliers=False)
-    plt.title(dim)
+    plt.title(features_map(dim))
     plt.xticks(fontsize=8)
     plt.savefig("Latex/boxplot/"+dim+".png")
     plt.clf()
@@ -243,10 +249,10 @@ latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n
     
 # entropy
 shannon = []
-for cluster_id in ordered_list:
+for cluster_id in sorted_clusters:
     shannon.append(sessions[sessions.global_cluster_id==cluster_id].entropy.mean())
 shannon = np.reshape(shannon, (3, 3)).transpose()
-num_label = np.reshape(ordered_list, (3, 3)).transpose()
+num_label = np.reshape(sorted_clusters, (3, 3)).transpose()
 fig, ax = plt.subplots()
 cax = ax.matshow(shannon, cmap="hot_r")
 for i in range(shannon.shape[0]):
@@ -288,7 +294,7 @@ for cluster_id in num_cluster:
     latex_output.write(" & "+str(sessions[sessions.global_cluster_id==cluster_id].shape[0]))
 latex_output.write(" \\\\\n                        \\hline\n")
 for dim in dimensions_1 + dimensions_2:
-    latex_output.write("                        "+str(dim).replace("_", "\_"))
+    latex_output.write("                        "+features_map(dim))
     for cluster_id in num_cluster:
         latex_output.write(" & {:.3f}".format(centroids[centroids.global_cluster_id==cluster_id][dim].values[0]))
     latex_output.write(" \\\\\n                        \\hline\n")
@@ -322,7 +328,7 @@ for cluster_id in num_cluster:
         latex_output.write(" & "+str(sessions[sessions.global_cluster_id==cid].shape[0]))
     latex_output.write(" \\\\\n                        \\hline\n")
     for dim in dimensions_1 + dimensions_2:
-        latex_output.write("                        "+str(dim).replace("_", "\_"))
+        latex_output.write("                        "+features_map(dim))
         for cid in num_cluster:
             latex_output.write(" & {:.3f}".format(centroids[centroids.global_cluster_id==cid][dim].values[0]))
         latex_output.write(" \\\\\n                        \\hline\n")

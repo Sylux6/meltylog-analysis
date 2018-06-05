@@ -96,3 +96,17 @@ def log_normalize(serie):
         return serie.apply(lambda x: x / serie.shape[0])
     else:
         return serie.apply(lambda x: (log(x) - min_value)/(max_value- min_value))
+
+def features_map(feature):
+    if feature == "requests":
+        return "Number of requests"
+    elif feature == "timespan":
+        return "Session Timespan"
+    elif feature == "standard_deviation":
+        return "Inter Request Stand. Deviation"
+    elif feature == "inter_req_mean_seconds":
+        return "Inter Request Mean Time"
+    elif feature == "star_chain_like":
+        return "Star-like Chain-like Index"
+    else:
+        return feature
