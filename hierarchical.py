@@ -42,7 +42,6 @@ pathlib.Path("Latex").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/Graphs").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/Clusters").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/pca").mkdir(parents=True, exist_ok=True)
-pathlib.Path("Latex/pca/pairwise").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/boxplot").mkdir(parents=True, exist_ok=True)
 latex_output = open("Latex/latex_clusters.tex", "w")
 print("\n   * 'Latex' directory created.")
@@ -155,7 +154,7 @@ latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols
 ###############################################################################
 # CLUSTERING
 
-topic_list = list(log.requested_topic.unique())
+topic_list = list(np.unique(log[["requested_topic", "referrer_topic"]].values))
 category_list = list(urls.category.unique())
 
 start_time = timelib.time()
@@ -183,6 +182,21 @@ sessions["global_cluster_id"] = sessions["global_cluster_id"].map(gcid_dic)
 num_cluster = sessions.global_cluster_id.unique()
 num_cluster.sort()
 
+# random sessions selection
+start_time = timelib.time()
+print("\n   * Selecting a good sample of sessions ...", end="\r")
+selected_sessions = {}
+np.random.seed(42)
+for c in num_cluster:
+    while True:
+        list_sessions = list(sessions[sessions.global_cluster_id==c].global_session_id.unique())
+        selected_sessions[c] = list(np.random.choice(list_sessions, size=5, replace=False))
+        if sessions[sessions.global_session_id.isin(selected_sessions[c])].timespan.var() <= 2*3600:
+            break
+    # list_sessions = list(sessions[sessions.global_cluster_id==c].global_session_id.unique())
+    # selected_sessions[c] = list(np.random.choice(list_sessions, size=5, replace=False))
+print("   * Sample of sessions selected in {:.1f} seconds.".format((timelib.time()-start_time)))
+
 # compute centroids for recap
 centroids = pd.DataFrame(columns=["global_cluster_id"] + dimensions_1 + dimensions_2)
 centroids["global_cluster_id"] = num_cluster
@@ -191,13 +205,6 @@ for dim in dimensions_1 + dimensions_2:
     for cluster_id in num_cluster:
         mean.append(sessions[sessions.global_cluster_id==cluster_id][dim].mean())
     centroids[dim] = mean
-
-# random sessions selection
-selected_sessions = {}
-np.random.seed(42)
-for c in num_cluster:
-    list_sessions = list(sessions[sessions.global_cluster_id==c].global_session_id.unique())
-    selected_sessions[c] = list(np.random.choice(list_sessions, size=5, replace=False))
 
 sorted_clusters = list()
 span = {}
@@ -214,39 +221,85 @@ for i in range(0, len(sorted_clusters)):
         span[sorted_clusters[i]] = max(span[sorted_clusters[3]], span[sorted_clusters[4]], span[sorted_clusters[5]])
     else:
         span[sorted_clusters[i]] = max(span[sorted_clusters[6]], span[sorted_clusters[7]], span[sorted_clusters[8]])
-# sessions["global_cluster_id"] = sessions.global_cluster_id.map(lambda x: x+100)
-# sorted_clusters = list(map(lambda x: x+100, sorted_clusters))
-# for i in range(0, len(sorted_clusters)):
-#     sessions.global_cluster_id.replace(sorted_clusters[i], i+1, inplace=True)
-# sorted_clusters = list(map(lambda x: x+100, sorted_clusters))
+
+# rename clusters
+order_dic = {}
+for i in range(0, len(sorted_clusters)):
+    order_dic[sorted_clusters[i]] = str(i+1)
+
+# PCA
+start_time = timelib.time()
+print("\n   * Computing PCA components ...", end="\r")
+pca = PCA(n_components=2)
+clustering_data=pca.fit_transform(sessions[weighted_dimensions_1+weighted_dimensions_2].values)
+
+fig, ax = plt.subplots()
+fig.set_size_inches([ 14, 14])
+matrix = pca.components_[:2,:]
+cax = ax.matshow(matrix)
+for i in range(matrix.shape[0]):
+    for j in range(matrix.shape[1]):
+        c = matrix[i,j]
+        ax.text(j,i, '%0.2f'%c, va='center', ha='center', color="w")
+ax.set_yticks(range(2))
+ax.set_xticks(range(len(dimensions_1+dimensions_2)))
+ax.set_yticklabels(['PC-%d'%n for n in range(1,2+1)])
+ax.set_xticklabels(dimensions_1+dimensions_2)
+fig.colorbar(cax, orientation="horizontal")
+plt.savefig('Latex/pca/components.png', format='png', bbox_inches="tight")
+plt.clf()
+plt.close()
+del matrix
+
+kmeans=KMeans(n_clusters=9)
+cluster_labels=kmeans.fit_predict(clustering_data)
+list_labels = list(cluster_labels)
+fig=plt.figure()
+plt.axis('equal')
+plt.xlabel('PC-1')
+plt.ylabel('PC-2')
+plt.grid(True)
+# Labeling the clusters
+for i, c in enumerate(kmeans.cluster_centers_):
+    plt.scatter(kmeans.cluster_centers_[i, 0], kmeans.cluster_centers_[i, 1], marker='o', c="white", alpha=1, s=ceil(10000*(list_labels.count(i)/len(list_labels))), edgecolor='k')
+    plt.scatter(c[0], c[1], marker='$%d$' % (i+1), alpha=1, s=50, edgecolor='k')
+plt.savefig('Latex/pca/pca_scatterplot.png')
+plt.clf()
+plt.close()
+del list_labels
+
+latex_output.write("\\section{PCA}\n\\begin{frame}{PCA}\n    \\begin{center}\n        \\includegraphics[scale=.15]{pca/components}\n\n        \\includegraphics[scale=.3]{pca/pca_scatterplot}\n    \\end{center}\n\\end{frame}\n\n")
+print("   * PCA components computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
 # generating cluster mosaic
 for cluster_id in sorted_clusters:
     cluster_sessions = sessions[sessions.global_cluster_id == cluster_id].global_session_id.unique()
     cluster_log = log[log.global_session_id.isin(cluster_sessions)]
-    plot_sessions_bis(cluster_log, 'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/_cluster%d.png'%cluster_id, cluster_id, N_max_sessions=5, max_time=span[cluster_id], time_resolution=None, mark_requests=False, sessions=selected_sessions[cluster_id])
-latex_output.write("\\section{Mosaic}\n\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\scalebox{.25}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[0])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[1])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[2])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[3])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[4])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[5])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[6])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[7])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(sorted_clusters[8])+".png}\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+    plot_sessions_min(order_dic[cluster_id], sessions, cluster_log, 'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/_cluster'+order_dic[cluster_id]+'.png', cluster_id, N_max_sessions=5, max_time=span[cluster_id], time_resolution=None, mark_requests=False, sessions=selected_sessions[cluster_id])
+
+latex_output.write("\\section{Mosaic}\n\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\scalebox{.25}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[0]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[1]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[2]])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[3]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[4]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[5]])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[6]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[7]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[8]])+".png}\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
 
 # boxplot
 for dim in dimensions_1+dimensions_2:
     box = pd.DataFrame()
     for cluster_id in sorted_clusters:
-        newcol = pd.DataFrame({"Cluster "+str(cluster_id): sessions[sessions.global_cluster_id==cluster_id][dim]})
+        newcol = pd.DataFrame({"Cluster "+order_dic[cluster_id]: sessions[sessions.global_cluster_id==cluster_id][dim]})
         box = pd.concat([box, newcol], axis=1)
     box.boxplot(showfliers=False)
     plt.title(features_map(dim))
     plt.xticks(fontsize=8)
     plt.savefig("Latex/boxplot/"+dim+".png")
     plt.clf()
-latex_output.write("\\section{Boxplots}\n\\begin{frame}{Boxplots}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{boxplot/"+str((dimensions_1+dimensions_2)[0])+"}")
-for i in range(1, len(dimensions_1+dimensions_2)):
+latex_output.write("\\section{Boxplots}\n\\begin{frame}{Boxplots}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccc}\n")
+for i in range(0, len(dimensions_1+dimensions_2)):
     if i%3 == 0:
-        latex_output.write(" \\\\\n                ")
+        latex_output.write(" \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{boxplot/"+str((dimensions_1+dimensions_2)[i])+"}")
     elif i%3 == 2:
         latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{boxplot/"+str((dimensions_1+dimensions_2)[i])+"}")
-    latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{boxplot/"+str((dimensions_1+dimensions_2)[i])+"} & ")
+    else:
+        latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{boxplot/"+str((dimensions_1+dimensions_2)[i])+"} & ")
 latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
-    
+
 # entropy
 shannon = []
 for cluster_id in sorted_clusters:
@@ -254,34 +307,59 @@ for cluster_id in sorted_clusters:
 shannon = np.reshape(shannon, (3, 3)).transpose()
 num_label = np.reshape(sorted_clusters, (3, 3)).transpose()
 fig, ax = plt.subplots()
-cax = ax.matshow(shannon, cmap="hot_r")
+cax = ax.matshow(shannon.transpose())
 for i in range(shannon.shape[0]):
     for j in range(shannon.shape[1]):
-        ax.text(i, j, 'cluster '+str(num_label[i][j])+'\n%0.2f'%shannon[i][j], va='center', ha='center', color=(0.8, 0.8, 0.8))
+        ax.text(i, j, 'cluster '+order_dic[num_label[i][j]]+'\n%0.2f'%shannon[i][j], va='center', ha='center', color="w")
 plt.xticks([])
 plt.yticks([])
 fig.colorbar(cax)
 plt.title("Entropy")
 plt.savefig("Latex/Clusters/entropy.png")
 plt.clf()
-latex_output.write("\\section{Entropy}\n\\begin{frame}{Entropy}\n    \\begin{center}        \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/entropy}\n    \\end{center}\n\\end{frame}\n\n")
+latex_output.write("\\section{Entropy}\n\\begin{frame}{Entropy}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{Clusters/entropy}\n    \\end{center}\n\\end{frame}\n\n")
+
+# markov
+print("\n   * Computing markov matrix ...", end="\r")
+markov = np.zeros((len(category_list), len(category_list)))
+for i in range(0, len(category_list)):
+    for j in range(0, len(category_list)):
+        markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / log.shape[0]
+fig, ax = plt.subplots()
+cax = ax.matshow(markov)
+for i in range(markov.shape[0]):
+    for j in range(markov.shape[1]):
+        ax.text(j, i, '\n%d' % int(round(markov[i][j]*100, 0)), va='center', ha='center', size=6, color="w")
+fig.colorbar(cax)
+ax.set_xticks(np.arange(len(category_list)))
+ax.set_yticks(np.arange(len(category_list)))
+ax.set_xticklabels(category_list)
+ax.set_yticklabels(category_list)
+ax.xaxis.set_label_position('top') 
+plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
+plt.xlabel("Requested category")
+plt.ylabel("Referrer category")
+plt.title("Markov matrix", y=1.3)
+plt.savefig("Latex/pca/markov.png", bbox_inches="tight")
+plt.clf()
+latex_output.write(
+    "\\section{Markov}\n\\begin{frame}{Markov matrix}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{pca/markov}\n    \\end{center}\n\\end{frame}\n\n"
+)
+print("   * Markov matrix computed in {:.1f} seconds.".format((timelib.time() - start_time)))
 
 # recap
 if n_clusters_1*n_clusters_2 > 10:
     resizebox = ".8"
 else:
     resizebox = ""
-latex_output.write("\\section{Recap}\n\\begin{frame}{Clustering: "+str(n_clusters_1)+"x"+str(n_clusters_2)+" clusters}\n    \\begin{center}\n        \\resizebox{"+resizebox+"\\textwidth}{!}{\n            \\begin{tabular}{ccccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster0}")
-for i in range(1, 15):
-    if i >= n_clusters_1*n_clusters_2: # no clusters left
-        break
-    if i == 5: # second row
-        latex_output.write(" \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster5}")
-        continue
-    elif i == 10: # second row
-        latex_output.write(" \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster10}")
-        continue
-    latex_output.write(" & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+str(i)+"}")
+latex_output.write("\\section{Recap}\n\\begin{frame}{Clustering: "+str(n_clusters_1)+"x"+str(n_clusters_2)+" clusters}\n    \\begin{center}\n        \\resizebox{"+resizebox+"\\textwidth}{!}{\n            \\begin{tabular}{ccccc}\n")
+for i in range(0, len(sorted_clusters)):
+    if i%5 == 0:
+        latex_output.write("\\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+order_dic[sorted_clusters[i]]+"}")
+    elif i%5 == 4:
+        latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+order_dic[sorted_clusters[i]]+"}")
+    else:
+        latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+order_dic[sorted_clusters[i]]+"} & ")
 latex_output.write("\n            \\end{tabular}\n        }\n\n        \\begin{columns}\n            \\begin{column}{.65\\textwidth}\n                \\begin{center}\n                \\scalebox{0.25}{\n")
 latex_output.write("                    \\begin{tabular}{|c|")
 for cluster_id in num_cluster:
@@ -301,20 +379,20 @@ for dim in dimensions_1 + dimensions_2:
 latex_output.write("                    \\end{tabular}\n                }\n                \\end{center}\n            \\end{column}\n            \\begin{column}{.35\\textwidth}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/palette_topic}\n            \\end{column}\n        \\end{columns}\n    \\end{center}\n\\end{frame}\n\n")
 
 # display
-for cluster_id in num_cluster:
+for cluster_id in sorted_clusters:
     print("          Producing display of sessions for cluster %d"%cluster_id,end="\r")
     cluster_sessions = sessions[sessions.global_cluster_id == cluster_id].global_session_id.unique()
     cluster_log = log[log.global_session_id.isin(cluster_sessions)]
-    sessions_id = plot_sessions(cluster_log,'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/cluster%d.png'%cluster_id, cluster_id, labels=list(log.requested_topic.unique()), N_max_sessions=10,field="requested_topic", max_time=span[cluster_id],time_resolution=None,mark_requests=False, sessions=selected_sessions[cluster_id])
+    sessions_id = plot_sessions(order_dic[cluster_id], cluster_log,'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/cluster'+order_dic[cluster_id]+'.png', cluster_id, labels=list(log.requested_topic.unique()), N_max_sessions=10,field="requested_topic", max_time=span[cluster_id],time_resolution=None,mark_requests=False, sessions=selected_sessions[cluster_id])
 
     # graph
     session_draw(cluster_id, sessions_id, log, urls, category_list)
-    latex_output.write("% cluster "+str(cluster_id)+"\n\\section{Cluster "+str(cluster_id)+"}\n\\begin{frame}{Cluster "+str(cluster_id)+"}\n    \\begin{columns}\n        \\begin{column}{.6\\textwidth}\n            \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+str(cluster_id)+"}\n        \\end{column}\n        \\begin{column}{.4\\textwidth}\n            \\begin{center}\n              \\scalebox{.4}{\\begin{tabular}{|c|c|}\n                  \\hline\n                  \\multicolumn{2}{|c|}{mean} \\\\\n                  \\hline\n                  size & "+str(sessions[sessions.global_cluster_id==cluster_id].shape[0])+" \\\\\n                  \\hline\n")
-    for dim in dimensions_1 + dimensions_2:
-        latex_output.write("                  "+dim.replace("_", "\_")+" & {:.3f} \\\\\n                  \\hline\n".format(centroids[centroids.global_cluster_id==cluster_id][dim].values[0]))
+    latex_output.write("% cluster "+order_dic[cluster_id]+"\n\\section{Cluster "+order_dic[cluster_id]+"}\n\\begin{frame}{Cluster "+order_dic[cluster_id]+"}\n    \\begin{columns}\n        \\begin{column}{.6\\textwidth}\n            \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+order_dic[cluster_id]+"}\n        \\end{column}\n        \\begin{column}{.4\\textwidth}\n            \\begin{center}\n              \\scalebox{.4}{\\begin{tabular}{|c|c|}\n                  \\hline\n                  \\multicolumn{2}{|c|}{mean} \\\\\n                  \\hline\n                  size & "+str(sessions[sessions.global_cluster_id==cluster_id].shape[0])+" \\\\\n                  \\hline\n")
+    for dim in dimensions_1+dimensions_2:
+        latex_output.write("                  "+features_map(dim)+" & {:.3f} \\\\\n                  \\hline\n".format(centroids[centroids.global_cluster_id==cluster_id][dim].values[0]))
     latex_output.write("              \\end{tabular}}\n\n              \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/palette_topic}\n            \\end{center}\n        \\end{column}\n    \\end{columns}\n\\end{frame}\n\n")
 
-    latex_output.write("\\begin{frame}{Cluster "+str(cluster_id)+" -- Graphs}\n    \\resizebox{\\textwidth}{!}{\n    \\begin{tabular}{c|c|c|c|c}\n        \\huge{"+str(sessions_id[0])+"} & \\huge{"+str(sessions_id[1])+"} & \\huge{"+str(sessions_id[2])+"} & \\huge{"+str(sessions_id[3])+"} & \\huge{"+str(sessions_id[4])+"} \\\\\n        \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[0])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[1])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[2])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[3])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[4])+"}\n    \\end{tabular}}\n\n")
+    latex_output.write("\\begin{frame}{Cluster "+order_dic[cluster_id]+" -- Graphs}\n    \\resizebox{\\textwidth}{!}{\n    \\begin{tabular}{c|c|c|c|c}\n        \\huge{"+str(sessions_id[0])+"} & \\huge{"+str(sessions_id[1])+"} & \\huge{"+str(sessions_id[2])+"} & \\huge{"+str(sessions_id[3])+"} & \\huge{"+str(sessions_id[4])+"} \\\\\n        \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[0])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[1])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[2])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[3])+"} & \\includegraphics[width=\\textwidth, keepaspectratio]{Graphs/session"+str(sessions_id[4])+"}\n    \\end{tabular}}\n\n")
 
     # recap centroids
     latex_output.write("    \\begin{columns}\n        \\begin{column}{.65\\textwidth}\n            \\begin{center}\n                \\scalebox{.25}{\n                    \\begin{tabular}{|c|")

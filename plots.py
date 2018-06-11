@@ -44,7 +44,7 @@ def alter_plot_palette(labels,filename):
     return
     
  
-def plot_sessions(cluster_log, filename, cluster_id, labels,
+def plot_sessions(title, cluster_log, filename, cluster_id, labels,
                   N_max_sessions=10, field="category", width=0,
                   max_time=None, time_resolution=None, mark_requests=False, sessions=[]):
     
@@ -128,7 +128,7 @@ def plot_sessions(cluster_log, filename, cluster_id, labels,
     plt.gca().axis('auto')
     plt.xlabel('Seconds')
     plt.ylabel('Sessions')
-    plt.title("Cluster "+str(cluster_id))
+    plt.title("Cluster "+title)
     plt.grid(alpha=0.5)
     plt.tick_params(axis="both", which="major", labelsize=6)
     # Lines and axes
@@ -190,12 +190,130 @@ def plot_session_distributions(distributions,labels,filename):
     plt.close()
     return;
 
-def plot_sessions_bis(cluster_log, filename, cluster_id, 
-                  N_max_sessions=10, width=0,
-                  max_time=None, time_resolution=None, mark_requests=False, sessions=[]):
+# def plot_sessions_bis(sessions_log, cluster_log, filename, cluster_id, 
+#                   N_max_sessions=10, width=0,
+#                   max_time=None, time_resolution=None, mark_requests=False, sessions=[]):
     
+#     plot_log=cluster_log.copy(deep=True)
+    
+#     # list of sessions
+#     if not sessions:
+#         sessions = list(plot_log.global_session_id.unique())
+#         if plot_log.shape[0]>N_max_sessions:
+#             # random.shuffle(sessions)
+#             sessions=sessions[:N_max_sessions]
+#             # updating log
+#             plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
+#     else:
+#         plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
+    
+#     # Session data
+#     session_data=pd.DataFrame(columns=['id','start','end','timespan','span_sec'])
+#     session_data['id']=sessions
+    
+#     # start and ending times
+#     session_start=plot_log[['timestamp','global_session_id']].groupby('global_session_id').min()
+#     session_end=plot_log[['timestamp','global_session_id']].groupby('global_session_id').max()
+#     session_data['start']=session_data.id.map(pd.Series(data=session_start.timestamp.values
+#                 ,index=session_start.index))
+#     session_data['end']=session_data.id.map(pd.Series(data=session_end.timestamp.values
+#                 ,index=session_end.index))
+#     session_data['timespan']=session_data.apply(lambda row: pd.Timedelta(pd.Timestamp(row.end)-pd.Timestamp(row.start)) , axis=1)
+#     session_data['span_sec']=session_data.timespan.apply(lambda x: x.seconds)
+    
+#     # Time Frame
+#     if max_time is None:
+#         padding_seconds=ceil(session_data.span_sec.max()/9.0)
+#         time_window_seconds=session_data.span_sec.max()+padding_seconds+1
+#     else:
+#         padding_seconds=ceil(max_time/9.0)
+#         time_window_seconds=max_time+padding_seconds+1
+    
+#     # Filling the matrix
+#     if width == 0:
+#         width = int(0.005*time_window_seconds)
+#     image=np.zeros((len(sessions),int(time_window_seconds),4))
+#     session_counter=0
+#     for session in sessions:
+#         session_draw_bis(session, plot_log)
+#         # selecting requests for the session
+#         session_log=plot_log[plot_log.global_session_id==session].sort_values(by='timestamp')
+#         session_log['relative_seconds']=0
+#         session_start=pd.Timestamp(session_log.timestamp.min())#pd.Timestamp(session_data[session_data.id==session].start.iloc[0])
+#         session_log['relative_seconds']=session_log['timestamp'].apply(lambda x: (pd.Timestamp(x)-session_start).seconds )
+#         for r in range(0,session_log.shape[0]):
+#             if r==session_log.shape[0]-1:
+#                 # if it is the last (or only request) we fill with blank pixels
+#                 image[session_counter,session_log.iloc[r].relative_seconds:,:]=np.zeros((int(time_window_seconds)-session_log.iloc[r].relative_seconds,4))
+#             else:
+#                 # color patch
+#                 pix_start=session_log.iloc[r].relative_seconds
+#                 pix_end=session_log.iloc[r+1].relative_seconds
+#                 paint_color=np.array([100,100,100,1])
+#                 paint_color_patch=np.reshape(np.tile(paint_color,pix_end-pix_start),newshape=(pix_end-pix_start,4))
+#                 image[session_counter,pix_start:pix_end,:]=paint_color_patch
+#                 # black patch
+#                 pix_start=session_log.iloc[r].relative_seconds
+#                 pix_end=pix_start+width
+#                 paint_color=np.array([0,0,0,1])
+#                 paint_black_patch=np.reshape(np.tile(paint_color,pix_end-pix_start),newshape=(pix_end-pix_start,4))
+#                 image[session_counter,pix_start:pix_end,:]=paint_black_patch
+
+#         session_counter+=1    
+            
+#     grid = plt.GridSpec(10000, 12000, wspace=0.4, hspace=0.3)
+#     plt.subplot(grid[:, :9999])
+#     # Plotting the matrix
+#     plt.imshow(image)
+#     plt.gcf().set_size_inches([ 4, 4])
+#     plt.gca().axis('auto')
+#     plt.xlabel('Seconds')
+#     plt.ylabel('Sessions')
+#     plt.title("Cluster "+str(cluster_id)+" ({}%)".format(int(sessions_log[sessions_log.global_cluster_id==cluster_id].shape[0]/sessions_log.shape[0]*100)))
+#     plt.grid(alpha=0.5)
+#     plt.tick_params(axis="both", which="major", labelsize=6)
+#     # Lines and axes
+#     ax = plt.gca();
+#     #   Major ticks
+#     ax.set_xticks([n*floor(0.1*time_window_seconds) for n in range(0,10)]);
+#     ax.set_yticks(np.arange(0, len(sessions), 1));
+#     ax.set_yticklabels(sessions);    
+#     #   Minor ticks
+#     ax.set_yticks(np.arange(-.5, len(sessions), 1), minor=True);
+#     # Gridlines based on minor ticks
+#     ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+#     # Saving and closing
+#     g1 = plt.subplot(grid[:1999, 10000:11999])
+#     plt.axis('off')
+#     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[0])+".png")
+#     plt.imshow(img)
+#     g2 = plt.subplot(grid[2000:3999, 10000:11999])
+#     plt.axis('off')
+#     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[1])+".png")
+#     plt.imshow(img)
+#     g3 = plt.subplot(grid[4000:5999, 10000:11999])
+#     plt.axis('off')
+#     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[2])+".png")
+#     plt.imshow(img)
+#     g4 = plt.subplot(grid[6000:7999, 10000:11999])
+#     plt.axis('off')
+#     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[3])+".png")
+#     plt.imshow(img)
+#     g5 = plt.subplot(grid[8000:9999, 10000:11999])
+#     plt.axis('off')
+#     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[4])+".png")
+#     plt.imshow(img)
+#     plt.savefig(filename, format='png')
+#     plt.clf()
+#     plt.close()
+#     return sessions
+
+def plot_sessions_min(title, sessions_log, cluster_log, filename, cluster_id, 
+                N_max_sessions=10, width=0,
+                max_time=None, time_resolution=None, mark_requests=False, sessions=[]):
+
     plot_log=cluster_log.copy(deep=True)
-    
+
     # list of sessions
     if not sessions:
         sessions = list(plot_log.global_session_id.unique())
@@ -206,11 +324,11 @@ def plot_sessions_bis(cluster_log, filename, cluster_id,
             plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
     else:
         plot_log=plot_log[plot_log.global_session_id.isin(sessions)]
-    
+
     # Session data
     session_data=pd.DataFrame(columns=['id','start','end','timespan','span_sec'])
     session_data['id']=sessions
-    
+
     # start and ending times
     session_start=plot_log[['timestamp','global_session_id']].groupby('global_session_id').min()
     session_end=plot_log[['timestamp','global_session_id']].groupby('global_session_id').max()
@@ -220,7 +338,7 @@ def plot_sessions_bis(cluster_log, filename, cluster_id,
                 ,index=session_end.index))
     session_data['timespan']=session_data.apply(lambda row: pd.Timedelta(pd.Timestamp(row.end)-pd.Timestamp(row.start)) , axis=1)
     session_data['span_sec']=session_data.timespan.apply(lambda x: x.seconds)
-    
+
     # Time Frame
     if max_time is None:
         padding_seconds=ceil(session_data.span_sec.max()/9.0)
@@ -228,7 +346,7 @@ def plot_sessions_bis(cluster_log, filename, cluster_id,
     else:
         padding_seconds=ceil(max_time/9.0)
         time_window_seconds=max_time+padding_seconds+1
-    
+
     # Filling the matrix
     if width == 0:
         width = int(0.005*time_window_seconds)
@@ -267,17 +385,19 @@ def plot_sessions_bis(cluster_log, filename, cluster_id,
     plt.imshow(image)
     plt.gcf().set_size_inches([ 4, 4])
     plt.gca().axis('auto')
-    plt.xlabel('Seconds')
+    plt.xlabel('Minutes')
     plt.ylabel('Sessions')
-    plt.title("Cluster "+str(cluster_id))
+    plt.title("Cluster "+title+" ({}%)".format(int(sessions_log[sessions_log.global_cluster_id==cluster_id].shape[0]/sessions_log.shape[0]*100)))
     plt.grid(alpha=0.5)
     plt.tick_params(axis="both", which="major", labelsize=6)
     # Lines and axes
     ax = plt.gca();
     #   Major ticks
-    ax.set_xticks([n*floor(0.1*time_window_seconds) for n in range(0,10)]);
-    ax.set_yticks(np.arange(0, len(sessions), 1));
-    ax.set_yticklabels(sessions);    
+    labels = [n * (time_window_seconds / 10) for n in range(0, 10)]
+    ax.set_xticks(labels)
+    ax.set_xticklabels(round(labels[n]/60, 1) for n in range(0, len(labels)))
+    ax.set_yticks(np.arange(0, len(sessions), 1))
+    ax.set_yticklabels(sessions)  
     #   Minor ticks
     ax.set_yticks(np.arange(-.5, len(sessions), 1), minor=True);
     # Gridlines based on minor ticks
