@@ -182,21 +182,6 @@ sessions["global_cluster_id"] = sessions["global_cluster_id"].map(gcid_dic)
 num_cluster = sessions.global_cluster_id.unique()
 num_cluster.sort()
 
-# random sessions selection
-start_time = timelib.time()
-print("\n   * Selecting a good sample of sessions ...", end="\r")
-selected_sessions = {}
-np.random.seed(42)
-for c in num_cluster:
-    while True:
-        list_sessions = list(sessions[sessions.global_cluster_id==c].global_session_id.unique())
-        selected_sessions[c] = list(np.random.choice(list_sessions, size=5, replace=False))
-        if sessions[sessions.global_session_id.isin(selected_sessions[c])].timespan.var() <= 2*3600:
-            break
-    # list_sessions = list(sessions[sessions.global_cluster_id==c].global_session_id.unique())
-    # selected_sessions[c] = list(np.random.choice(list_sessions, size=5, replace=False))
-print("   * Sample of sessions selected in {:.1f} seconds.".format((timelib.time()-start_time)))
-
 # compute centroids for recap
 centroids = pd.DataFrame(columns=["global_cluster_id"] + dimensions_1 + dimensions_2)
 centroids["global_cluster_id"] = num_cluster
@@ -206,21 +191,31 @@ for dim in dimensions_1 + dimensions_2:
         mean.append(sessions[sessions.global_cluster_id==cluster_id][dim].mean())
     centroids[dim] = mean
 
+# random sessions selection
+start_time = timelib.time()
+print("\n   * Selecting a good sample of sessions ...", end="\r")
+selected_sessions = {}
+centroids["sum"] = centroids[dimensions_1+dimensions_2].sum(axis=1)
+sessions["dist"] = sessions.global_cluster_id.map(pd.Series(data=centroids["sum"], index=centroids.global_cluster_id.values))
+sessions["dist"] = sessions[dimensions_1+dimensions_2].sum(axis=1) - sessions["dist"]
+sessions["dist"] = sqrt((sessions["dist"] * sessions["dist"]))
+for cluster_id in num_cluster:
+    selected_sessions[cluster_id] = list(sessions[sessions.global_cluster_id==cluster_id].sort_values(["dist"]).global_session_id.values)[:5]
+print("   * Sample of sessions selected in {:.1f} seconds.".format((timelib.time()-start_time)))
+
+# sort
 sorted_clusters = list()
 span = {}
 tmp = centroids.sort_values("timespan")
-sorted_clusters = sorted_clusters + list((tmp.iloc[:3,:].sort_values("star_chain_like").global_cluster_id.values))
-sorted_clusters = sorted_clusters + list((tmp.iloc[3:6,:].sort_values("star_chain_like").global_cluster_id.values))
-sorted_clusters = sorted_clusters + list((tmp.iloc[6:9,:].sort_values("star_chain_like").global_cluster_id.values))
+for i in range(0, n_clusters_2):
+    sorted_clusters = sorted_clusters + list((tmp.iloc[i*n_clusters_2:(i+1)*n_clusters_2,:].sort_values("star_chain_like").global_cluster_id.values))
 for cluster_id in sorted_clusters:
     span[cluster_id] = sessions[sessions.global_session_id.isin(selected_sessions[cluster_id])].timespan.max()
 for i in range(0, len(sorted_clusters)):
-    if i < 3:
-        span[sorted_clusters[i]] = max(span[sorted_clusters[0]], span[sorted_clusters[1]], span[sorted_clusters[2]])
-    elif i < 6:
-        span[sorted_clusters[i]] = max(span[sorted_clusters[3]], span[sorted_clusters[4]], span[sorted_clusters[5]])
-    else:
-        span[sorted_clusters[i]] = max(span[sorted_clusters[6]], span[sorted_clusters[7]], span[sorted_clusters[8]])
+    comparelist = list()
+    for j in range(i-(i%n_clusters_1), i-(i%n_clusters_1)+n_clusters_1):
+        comparelist = comparelist + [span[sorted_clusters[j]]]
+    span[sorted_clusters[i]] = max(comparelist)
 
 # rename clusters
 order_dic = {}
@@ -234,24 +229,25 @@ pca = PCA(n_components=2)
 clustering_data=pca.fit_transform(sessions[weighted_dimensions_1+weighted_dimensions_2].values)
 
 fig, ax = plt.subplots()
-fig.set_size_inches([ 14, 14])
+fig.set_size_inches([ 7, 3])
 matrix = pca.components_[:2,:]
-cax = ax.matshow(matrix)
+cax = ax.matshow(matrix, cmap="coolwarm", clim=[-1, 1])
 for i in range(matrix.shape[0]):
     for j in range(matrix.shape[1]):
         c = matrix[i,j]
-        ax.text(j,i, '%0.2f'%c, va='center', ha='center', color="w")
+        ax.text(j,i, '%0.2f'%c, va='center', ha='center', color="w", size=10)
 ax.set_yticks(range(2))
 ax.set_xticks(range(len(dimensions_1+dimensions_2)))
 ax.set_yticklabels(['PC-%d'%n for n in range(1,2+1)])
-ax.set_xticklabels(dimensions_1+dimensions_2)
+ax.set_xticklabels(list(map(lambda x: features_map(x), dimensions_1+dimensions_2)))
+plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
 fig.colorbar(cax, orientation="horizontal")
 plt.savefig('Latex/pca/components.png', format='png', bbox_inches="tight")
 plt.clf()
 plt.close()
 del matrix
 
-kmeans=KMeans(n_clusters=9)
+kmeans=KMeans(n_clusters=n_clusters_1*n_clusters_2)
 cluster_labels=kmeans.fit_predict(clustering_data)
 list_labels = list(cluster_labels)
 fig=plt.figure()
@@ -268,7 +264,7 @@ plt.clf()
 plt.close()
 del list_labels
 
-latex_output.write("\\section{PCA}\n\\begin{frame}{PCA}\n    \\begin{center}\n        \\includegraphics[scale=.15]{pca/components}\n\n        \\includegraphics[scale=.3]{pca/pca_scatterplot}\n    \\end{center}\n\\end{frame}\n\n")
+latex_output.write("\\section{PCA}\n\\begin{frame}{PCA}\n    \\begin{center}\n        \\includegraphics[scale=.3]{pca/components}\n\n        \\includegraphics[scale=.3]{pca/pca_scatterplot}\n    \\end{center}\n\\end{frame}\n\n")
 print("   * PCA components computed in {:.1f} seconds.".format((timelib.time()-start_time)))
 
 # generating cluster mosaic
@@ -277,7 +273,15 @@ for cluster_id in sorted_clusters:
     cluster_log = log[log.global_session_id.isin(cluster_sessions)]
     plot_sessions_min(order_dic[cluster_id], sessions, cluster_log, 'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/_cluster'+order_dic[cluster_id]+'.png', cluster_id, N_max_sessions=5, max_time=span[cluster_id], time_resolution=None, mark_requests=False, sessions=selected_sessions[cluster_id])
 
-latex_output.write("\\section{Mosaic}\n\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\scalebox{.25}{\n            \\begin{tabular}{ccc}\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[0]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[1]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[2]])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[3]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[4]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[5]])+".png} \\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[6]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[7]])+".png} & \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[8]])+".png}\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
+latex_output.write("\\section{Mosaic}\n\\begin{frame}{Cluster mosaic}\n    \\begin{center}\n        \\scalebox{.25}{\n            \\begin{tabular}{ccc}\n")
+for i in range(0, n_clusters_1*n_clusters_2):
+    if i%n_clusters_2 == 0:
+        latex_output.write("\\\\\n                \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[i]])+".png}")
+    elif i%n_clusters_2 == n_clusters_2-1:
+        latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[i]])+".png}")
+    else:
+        latex_output.write("\\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/_cluster"+str(order_dic[sorted_clusters[i]])+".png} & ")
+latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n\\end{frame}\n\n")
 
 # boxplot
 for dim in dimensions_1+dimensions_2:
@@ -304,10 +308,10 @@ latex_output.write("\n            \\end{tabular}\n        }\n    \\end{center}\n
 shannon = []
 for cluster_id in sorted_clusters:
     shannon.append(sessions[sessions.global_cluster_id==cluster_id].entropy.mean())
-shannon = np.reshape(shannon, (3, 3)).transpose()
-num_label = np.reshape(sorted_clusters, (3, 3)).transpose()
+shannon = np.reshape(shannon, (n_clusters_1, n_clusters_2)).transpose()
+num_label = np.reshape(sorted_clusters, (n_clusters_1, n_clusters_2)).transpose()
 fig, ax = plt.subplots()
-cax = ax.matshow(shannon.transpose())
+cax = ax.matshow(shannon.transpose(), cmap="coolwarm")
 for i in range(shannon.shape[0]):
     for j in range(shannon.shape[1]):
         ax.text(i, j, 'cluster '+order_dic[num_label[i][j]]+'\n%0.2f'%shannon[i][j], va='center', ha='center', color="w")
@@ -322,14 +326,15 @@ latex_output.write("\\section{Entropy}\n\\begin{frame}{Entropy}\n    \\begin{cen
 # markov
 print("\n   * Computing markov matrix ...", end="\r")
 markov = np.zeros((len(category_list), len(category_list)))
+total_entries = log.shape[0]
 for i in range(0, len(category_list)):
     for j in range(0, len(category_list)):
-        markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / log.shape[0]
+        markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / total_entries
 fig, ax = plt.subplots()
-cax = ax.matshow(markov)
+cax = ax.matshow(markov, cmap="coolwarm")
 for i in range(markov.shape[0]):
     for j in range(markov.shape[1]):
-        ax.text(j, i, '\n%d' % int(round(markov[i][j]*100, 0)), va='center', ha='center', size=6, color="w")
+        ax.text(j, i, '\n%.2f' % markov[i][j], va='center', ha='center', size=6, color="w")
 fig.colorbar(cax)
 ax.set_xticks(np.arange(len(category_list)))
 ax.set_yticks(np.arange(len(category_list)))
