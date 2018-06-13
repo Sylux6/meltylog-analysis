@@ -347,6 +347,8 @@ def plot_sessions_min(title, sessions_log, cluster_log, filename, cluster_id,
         padding_seconds=ceil(max_time/9.0)
         time_window_seconds=max_time+padding_seconds+1
 
+    seconds = round(max_time/60/5)*5*60
+
     # Filling the matrix
     if width == 0:
         width = int(0.005*time_window_seconds)
@@ -393,9 +395,10 @@ def plot_sessions_min(title, sessions_log, cluster_log, filename, cluster_id,
     # Lines and axes
     ax = plt.gca();
     #   Major ticks
-    labels = [n * (time_window_seconds / 10) for n in range(0, 10)]
-    ax.set_xticks(labels)
-    ax.set_xticklabels(round(labels[n]/60, 1) for n in range(0, len(labels)))
+    minutes = [int(n * round(seconds/60/5)) for n in range(0, 6)]
+    seconds = list(map(lambda x: int(x*60), minutes))
+    ax.set_xticks(seconds)
+    ax.set_xticklabels(minutes)
     ax.set_yticks(np.arange(0, len(sessions), 1))
     ax.set_yticklabels(sessions)  
     #   Minor ticks

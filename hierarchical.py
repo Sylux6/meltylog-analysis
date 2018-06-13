@@ -15,7 +15,7 @@ from log_functions import *
 from graph import *
 
 from plots import *
-import matplotlib
+import matplotlib as mpl
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pylab import *
@@ -247,22 +247,22 @@ plt.clf()
 plt.close()
 del matrix
 
-kmeans=KMeans(n_clusters=n_clusters_1*n_clusters_2)
-cluster_labels=kmeans.fit_predict(clustering_data)
-list_labels = list(cluster_labels)
+df = pd.DataFrame(clustering_data, columns=["pc1", "pc2"])
+sessions["pc1"] = df.pc1.values
+sessions["pc2"] = df.pc2.values
 fig=plt.figure()
 plt.axis('equal')
 plt.xlabel('PC-1')
 plt.ylabel('PC-2')
 plt.grid(True)
 # Labeling the clusters
-for i, c in enumerate(kmeans.cluster_centers_):
-    plt.scatter(kmeans.cluster_centers_[i, 0], kmeans.cluster_centers_[i, 1], marker='o', c="white", alpha=1, s=ceil(10000*(list_labels.count(i)/len(list_labels))), edgecolor='k')
-    plt.scatter(c[0], c[1], marker='$%d$' % (i+1), alpha=1, s=50, edgecolor='k')
+for cluster_id in num_cluster:
+    plt.scatter(sessions[sessions.global_cluster_id==cluster_id].pc1.mean(), sessions[sessions.global_cluster_id==cluster_id].pc2.mean(), marker='o', c="white", alpha=1, s=ceil(10000*(sessions[sessions.global_cluster_id==cluster_id].shape[0]/sessions.shape[0])), edgecolor='k')
+    plt.scatter(sessions[sessions.global_cluster_id==cluster_id].pc1.mean(), sessions[sessions.global_cluster_id==cluster_id].pc2.mean(), marker='$%d$' % (int(order_dic[cluster_id])), alpha=1, s=50, edgecolor='k')
 plt.savefig('Latex/pca/pca_scatterplot.png')
 plt.clf()
 plt.close()
-del list_labels
+del df
 
 latex_output.write("\\section{PCA}\n\\begin{frame}{PCA}\n    \\begin{center}\n        \\includegraphics[scale=.3]{pca/components}\n\n        \\includegraphics[scale=.3]{pca/pca_scatterplot}\n    \\end{center}\n\\end{frame}\n\n")
 print("   * PCA components computed in {:.1f} seconds.".format((timelib.time()-start_time)))
@@ -322,6 +322,40 @@ plt.title("Entropy")
 plt.savefig("Latex/Clusters/entropy.png")
 plt.clf()
 latex_output.write("\\section{Entropy}\n\\begin{frame}{Entropy}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{Clusters/entropy}\n    \\end{center}\n\\end{frame}\n\n")
+
+# pie
+start_time = timelib.time()
+print("\n   * Plotting topic proportion ...", end="\r")
+pie = pd.DataFrame()
+pie["global_cluster_id"] = num_cluster
+log["global_cluster_id"] = log.global_session_id.map(pd.Series(data=sessions.global_cluster_id, index=sessions.global_session_id))
+cluster_log = log.dropna()
+
+for topic in topic_list:
+    pie[topic] = cluster_log[["global_cluster_id", "requested_topic"]][cluster_log.requested_topic==topic].groupby("global_cluster_id").count()
+pie.fillna(0, inplace=True)
+pie.set_index("global_cluster_id", inplace=True)
+
+fig, axs = plt.subplots(n_clusters_2, n_clusters_1, figsize=(2*n_clusters_2, 2*n_clusters_1))
+fig.subplots_adjust(hspace=0.1, wspace=0.0)
+axs = axs.ravel()
+for n in range(len(sorted_clusters)):
+    color_vals = [n for n in range(len(topic_list))]
+    my_norm = mpl.colors.Normalize(0, len(topic_list))
+    my_cmap = mpl.cm.get_cmap("tab20", len(color_vals))
+    patches, texts, autotexts = axs[n].pie(pie.ix[n], labels = None, autopct='%1.1f%%', startangle=90, colors=my_cmap(my_norm(color_vals)))
+    axs[n].set_aspect('equal')
+    axs[n].set_title("Cluster "+order_dic[sorted_clusters[n]])
+    for item in autotexts:
+        item.set_text("")
+ax_cb = fig.add_axes([.9,.25,.03,.5])
+cb = mpl.colorbar.ColorbarBase(ax_cb, cmap=my_cmap, norm=my_norm, ticks=color_vals)
+cb.set_label("Topic")
+cb.set_ticklabels(topic_list)
+plt.savefig("Latex/Clusters/topic.png", bbox_inches="tight")
+plt.clf()
+latex_output.write("\\section{Topic proportion}\n\\begin{frame}{Topic proportion}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{Clusters/topic}\n    \\end{center}\n\\end{frame}\n\n")
+print("   * Topic proportion plotted in {:.1f} seconds.".format((timelib.time()-start_time)))
 
 # markov
 print("\n   * Computing markov matrix ...", end="\r")
