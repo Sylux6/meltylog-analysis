@@ -58,8 +58,8 @@ if len(list(set(dimensions_1) & set(dimensions_2))) > 0:
     quit()
 
 lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
-n_clusters_1 = 3
-n_clusters_2 = 3
+n_clusters_1 = 2
+n_clusters_2 = 2
 
 ###############################################################################
 # READING DATA FILES
@@ -207,13 +207,13 @@ print("   * Sample of sessions selected in {:.1f} seconds.".format((timelib.time
 sorted_clusters = list()
 span = {}
 tmp = centroids.sort_values("timespan")
-for i in range(0, n_clusters_2):
+for i in range(0, n_clusters_1):
     sorted_clusters = sorted_clusters + list((tmp.iloc[i*n_clusters_2:(i+1)*n_clusters_2,:].sort_values("star_chain_like").global_cluster_id.values))
 for cluster_id in sorted_clusters:
     span[cluster_id] = sessions[sessions.global_session_id.isin(selected_sessions[cluster_id])].timespan.max()
 for i in range(0, len(sorted_clusters)):
     comparelist = list()
-    for j in range(i-(i%n_clusters_1), i-(i%n_clusters_1)+n_clusters_1):
+    for j in range(i-(i%n_clusters_2), i-(i%n_clusters_2)+n_clusters_2):
         comparelist = comparelist + [span[sorted_clusters[j]]]
     span[sorted_clusters[i]] = max(comparelist)
 
@@ -336,7 +336,7 @@ for topic in topic_list:
 pie.fillna(0, inplace=True)
 pie.set_index("global_cluster_id", inplace=True)
 
-fig, axs = plt.subplots(n_clusters_2, n_clusters_1, figsize=(2*n_clusters_2, 2*n_clusters_1))
+fig, axs = plt.subplots(n_clusters_1, n_clusters_2, figsize=(2*n_clusters_1, 2*n_clusters_2))
 fig.subplots_adjust(hspace=0.1, wspace=0.0)
 axs = axs.ravel()
 for n in range(len(sorted_clusters)):
