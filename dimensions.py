@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from pylab import *
 import pathlib
 from math import *
+from graph_tool.all import *
 
 ##################################
 ##################################

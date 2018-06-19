@@ -59,7 +59,7 @@ if len(list(set(dimensions_1) & set(dimensions_2))) > 0:
 
 lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "popularity_mean", "variance"]
 n_clusters_1 = 2
-n_clusters_2 = 2
+n_clusters_2 = 3
 
 ###############################################################################
 # READING DATA FILES
@@ -242,7 +242,7 @@ ax.set_yticklabels(['PC-%d'%n for n in range(1,2+1)])
 ax.set_xticklabels(list(map(lambda x: features_map(x), dimensions_1+dimensions_2)))
 plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
 fig.colorbar(cax, orientation="horizontal")
-plt.savefig('Latex/pca/components.png', format='png', bbox_inches="tight")
+plt.savefig('Latex/pca/components.png', format='png', bbox_inches="tight", dpi=1000)
 plt.clf()
 plt.close()
 del matrix
@@ -259,7 +259,7 @@ plt.grid(True)
 for cluster_id in num_cluster:
     plt.scatter(sessions[sessions.global_cluster_id==cluster_id].pc1.mean(), sessions[sessions.global_cluster_id==cluster_id].pc2.mean(), marker='o', c="white", alpha=1, s=ceil(10000*(sessions[sessions.global_cluster_id==cluster_id].shape[0]/sessions.shape[0])), edgecolor='k')
     plt.scatter(sessions[sessions.global_cluster_id==cluster_id].pc1.mean(), sessions[sessions.global_cluster_id==cluster_id].pc2.mean(), marker='$%d$' % (int(order_dic[cluster_id])), alpha=1, s=50, edgecolor='k')
-plt.savefig('Latex/pca/pca_scatterplot.png')
+plt.savefig('Latex/pca/pca_scatterplot.png', dpi=1000)
 plt.clf()
 plt.close()
 del df
@@ -292,7 +292,7 @@ for dim in dimensions_1+dimensions_2:
     box.boxplot(showfliers=False)
     plt.title(features_map(dim))
     plt.xticks(fontsize=8)
-    plt.savefig("Latex/boxplot/"+dim+".png")
+    plt.savefig("Latex/boxplot/"+dim+".png", dpi=1000)
     plt.clf()
 latex_output.write("\\section{Boxplots}\n\\begin{frame}{Boxplots}\n    \\begin{center}\n        \\resizebox{\\textwidth}{!}{\n            \\begin{tabular}{ccc}\n")
 for i in range(0, len(dimensions_1+dimensions_2)):
@@ -319,7 +319,7 @@ plt.xticks([])
 plt.yticks([])
 fig.colorbar(cax)
 plt.title("Entropy")
-plt.savefig("Latex/Clusters/entropy.png")
+plt.savefig("Latex/Clusters/entropy.png", dpi=1000)
 plt.clf()
 latex_output.write("\\section{Entropy}\n\\begin{frame}{Entropy}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{Clusters/entropy}\n    \\end{center}\n\\end{frame}\n\n")
 
@@ -352,7 +352,7 @@ ax_cb = fig.add_axes([.9,.25,.03,.5])
 cb = mpl.colorbar.ColorbarBase(ax_cb, cmap=my_cmap, norm=my_norm, ticks=color_vals)
 cb.set_label("Topic")
 cb.set_ticklabels(topic_list)
-plt.savefig("Latex/Clusters/topic.png", bbox_inches="tight")
+plt.savefig("Latex/Clusters/topic.png", bbox_inches="tight", dpi=1000)
 plt.clf()
 latex_output.write("\\section{Topic proportion}\n\\begin{frame}{Topic proportion}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{Clusters/topic}\n    \\end{center}\n\\end{frame}\n\n")
 print("   * Topic proportion plotted in {:.1f} seconds.".format((timelib.time()-start_time)))
@@ -362,13 +362,13 @@ print("\n   * Computing markov matrix ...", end="\r")
 markov = np.zeros((len(category_list), len(category_list)))
 total_entries = log.shape[0]
 for i in range(0, len(category_list)):
-    for j in range(0, len(category_list)):
-        markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / total_entries
+   for j in range(0, len(category_list)):
+       markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / total_entries
 fig, ax = plt.subplots()
 cax = ax.matshow(markov, cmap="coolwarm")
 for i in range(markov.shape[0]):
-    for j in range(markov.shape[1]):
-        ax.text(j, i, '\n%.2f' % markov[i][j], va='center', ha='center', size=6, color="w")
+   for j in range(markov.shape[1]):
+       ax.text(j, i, '\n%.2f' % markov[i][j], va='center', ha='center', size=6, color="w")
 fig.colorbar(cax)
 ax.set_xticks(np.arange(len(category_list)))
 ax.set_yticks(np.arange(len(category_list)))
@@ -379,10 +379,10 @@ plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
 plt.xlabel("Requested category")
 plt.ylabel("Referrer category")
 plt.title("Markov matrix", y=1.3)
-plt.savefig("Latex/pca/markov.png", bbox_inches="tight")
+plt.savefig("Latex/pca/markov.png", bbox_inches="tight", dpi=1000)
 plt.clf()
 latex_output.write(
-    "\\section{Markov}\n\\begin{frame}{Markov matrix}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{pca/markov}\n    \\end{center}\n\\end{frame}\n\n"
+   "\\section{Markov}\n\\begin{frame}{Markov matrix}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{pca/markov}\n    \\end{center}\n\\end{frame}\n\n"
 )
 print("   * Markov matrix computed in {:.1f} seconds.".format((timelib.time() - start_time)))
 

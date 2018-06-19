@@ -48,22 +48,3 @@ def session_draw_bis(sessions_id, log):
     session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
     graph_draw(g, vertex_halo=halo, output="Latex/Graphs/_session"+str(sessions_id)+".png")
     return
-
-def compute_diameter(sessions_id, log):
-    session = log[log.global_session_id==sessions_id]
-    s_urls = session.requested_url
-    s_urls = s_urls.append(session.referrer_url)
-    s_urls.drop_duplicates(inplace=True)
-    s_list = list(s_list)
-    g = Graph()
-    v = {}
-    for u in s_urls:
-        v[u] = g.add_vertex()
-    session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
-    diameter = 0
-    for i in range(0, len(s_urls)):
-        for j in range(i+1, len(s_urls)):
-            for path in all_shortest_paths(g, v[s_urls[i]], v[s_urls[j]]):
-                if len(path) > diameter:
-                    diameter = len(path)
-    return diameter-1

@@ -25,7 +25,7 @@ def plot_palette(labels,filename):
     plt.imshow(image)
     plt.yticks(range(len(labels)), labels)
     plt.xticks([0], [''], fontsize=4)
-    plt.savefig(filename, format='png')
+    plt.savefig(filename, format='png', dpi=1000)
     plt.clf()
     plt.close()    
     return
@@ -38,7 +38,7 @@ def alter_plot_palette(labels,filename):
     plt.imshow(image)
     plt.xticks(range(len(labels)), labels, fontsize=4)
     plt.yticks([0], [''], fontsize=4)
-    plt.savefig(filename, format='png')
+    plt.savefig(filename, format='png', dpi=1000)
     plt.clf()
     plt.close()    
     return
@@ -143,7 +143,7 @@ def plot_sessions(title, cluster_log, filename, cluster_id, labels,
     ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
     # Saving and closing
     plt.tight_layout()
-    plt.savefig(filename, format='png')
+    plt.savefig(filename, format='png', dpi=1000)
     plt.clf()
     plt.close()    
     return sessions
@@ -162,7 +162,7 @@ def plot_pie(labels,distribution,filename,threshold=0.0):
             texts[i].set_fontsize(0)
             patches[i].set_label('')
     plt.gca().axis('equal')
-    plt.savefig(filename, format='pdf')
+    plt.savefig(filename, format='pdf',  dpi=1000)
     plt.clf()
     plt.close()
     return;
@@ -308,7 +308,7 @@ def plot_sessions_min(title, sessions_log, cluster_log, filename, cluster_id,
     plt.axis('off')
     img = mpimg.imread("Latex/Graphs/_session"+str(sessions[4])+".png")
     plt.imshow(img)
-    plt.savefig(filename, format='png')
+    plt.savefig(filename, format='png', dpi=1000)
     plt.clf()
     plt.close()
     return sessions
