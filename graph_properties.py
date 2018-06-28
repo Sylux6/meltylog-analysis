@@ -55,12 +55,22 @@ sessions = pd.read_csv(session_filename, sep=',')
 print("        "+session_filename+" loaded ({} rows) in {:.1f} seconds.".format(sessions.shape[0], timelib.time()-start_time))
 sessions.fillna(0, inplace=True)
 
-pages_sessions = pd.DataFrame(columns=["global_session_id", "url", "betweeness", "in_degree", "out_degree", "excentricity"])
+sample = sessions
+# sample = sessions[sessions.requests > 6]
+# sample = sample[sample.requests > 1000]
+# sample = sample.sample(n=10000)
+
+pages_sessions = pd.DataFrame(columns=["global_session_id", "url", "betweenness", "in_degree", "out_degree", "excentricity"])
 session_data = pd.DataFrame(columns=["global_session_id", "diameter"])
 
+total_session = sample.shape[0]
+count = 0
+
 start_time = timelib.time()
-print("\n   * Computing sessions diameter ...", end='\r')
-for gsid in sessions.global_session_id.values:
+for gsid in sample.global_session_id.values:
+    count = count + 1
+    print("   * Computing graph session features {}/{}...".format(count, total_session), end='\r')
+    
     session = log[log.global_session_id==gsid]
     s_urls = session.requested_url
     s_urls = s_urls.append(session.referrer_url)
@@ -71,19 +81,32 @@ for gsid in sessions.global_session_id.values:
     for u in s_urls:
         v[u] = g.add_vertex()
     session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
-
-    # diameter
     g.set_directed(False)
-    diameter = 0
+
+    vp, ep = betweenness(g)
+    betweenness_val = vp.a
+    dist = np.zeros((len(s_list), len(s_list)))
     for i in range(0, len(s_list)):
-        for j in range(i+1, len(s_list)):
-            vlist, elist = shortest_path(g, v[s_list[i]], v[s_list[j]])
-            if len(vlist) > diameter:
-                diameter = len(vlist)
-    session_data = session_data.append({"global_session_id": gsid, "diameter": diameter-1}, ignore_index=True)
+        dist[i] = shortest_distance(g, source=v[s_list[i]]).a
+
+
+    for i in range(0, len(s_list)):
+        pages_sessions = pages_sessions.append(
+            {
+                "global_session_id": gsid,
+                "url": s_list[i],
+                "in_degree": v[s_list[i]].in_degree(),
+                "out_degree": v[s_list[i]].out_degree(),
+                "betweenness": betweenness_val[i],
+                "excentricity": dist[i].max()
+            },
+            ignore_index=True)
+    
+    session_data = session_data.append({"global_session_id": gsid, "diameter": dist.max()}, ignore_index=True)
 
 sessions["diameter"] = sessions.global_session_id.map(pd.Series(data=session_data.diameter, index=session_data.global_session_id))
-sessions.to_csv(r"Outputs/Sessions_dia.csv", index=None)
+sessions.to_csv(r"Outputs/sessions_new.csv", index=None)
+pages_sessions.to_csv(r"Outputs/pages_sessions_new.csv", index=None)
 print("   * Diameter sessions computed in %.1f seconds." %(timelib.time()-start_time))
 
 ###############################################################################
