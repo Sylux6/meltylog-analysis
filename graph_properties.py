@@ -55,22 +55,36 @@ sessions = pd.read_csv(session_filename, sep=',')
 print("        "+session_filename+" loaded ({} rows) in {:.1f} seconds.".format(sessions.shape[0], timelib.time()-start_time))
 sessions.fillna(0, inplace=True)
 
+<<<<<<< HEAD
 sample = sessions
 # sample = sessions[sessions.requests > 6]
 # sample = sample[sample.requests > 1000]
 # sample = sample.sample(n=10000)
 
 pages_sessions = pd.DataFrame(columns=["global_session_id", "url", "betweenness", "in_degree", "out_degree", "excentricity"])
+=======
+sample = sessions[sessions.requests > 6]
+sample = sample[sample.requests < 1000]
+# sample = sessions.sample(n=int(sessions.shape[0]*0.05))
+pages_sessions = pd.DataFrame(columns=["global_session_id", "url", "betweeness", "in_degree", "out_degree", "excentricity"])
+>>>>>>> c8c0f406b72844e1c6280c071d4d04709a1a24b7
 session_data = pd.DataFrame(columns=["global_session_id", "diameter"])
 
 total_session = sample.shape[0]
 count = 0
 
 start_time = timelib.time()
+<<<<<<< HEAD
 for gsid in sample.global_session_id.values:
     count = count + 1
     print("   * Computing graph session features {}/{}...".format(count, total_session), end='\r')
     
+=======
+print("\n   * Computing sessions diameter {}/{}...".format(count, total_session), end='\r')
+for gsid in sample.global_session_id.values:
+    count = count + 1
+    print("   * Computing sessions diameter {}/{}...".format(count, total_session), end='\r')
+>>>>>>> c8c0f406b72844e1c6280c071d4d04709a1a24b7
     session = log[log.global_session_id==gsid]
     s_urls = session.requested_url
     s_urls = s_urls.append(session.referrer_url)
@@ -83,6 +97,7 @@ for gsid in sample.global_session_id.values:
     session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
     g.set_directed(False)
 
+<<<<<<< HEAD
     vp, ep = betweenness(g)
     betweenness_val = vp.a
     dist = np.zeros((len(s_list), len(s_list)))
@@ -91,12 +106,33 @@ for gsid in sample.global_session_id.values:
 
 
     for i in range(0, len(s_list)):
+=======
+    # # diameter
+    # for i in range(0, len(s_list)):
+    #     diameter = 0
+    #     for j in range(i+1, len(s_list)):
+    #         vlist, elist = shortest_path(g, v[s_list[i]], v[s_list[j]])
+    #         if len(vlist) > diameter:
+    #             diameter = len(vlist)
+    #     session_data = session_data.append({"global_session_id": gsid, "diameter": diameter-1}, ignore_index=True)
+
+    # pages sessions
+    vp, ep = betweenness(g)
+    betweenness_val = vp.a
+    for i in range(0, len(s_list)):
+        excentricity = 0
+        for j in range(0, len(s_list)):
+            dist = shortest_distance(g, source=v[s_list[i]], target=v[s_list[j]])
+            if dist > excentricity:
+                excentricity = dist
+>>>>>>> c8c0f406b72844e1c6280c071d4d04709a1a24b7
         pages_sessions = pages_sessions.append(
             {
                 "global_session_id": gsid,
                 "url": s_list[i],
                 "in_degree": v[s_list[i]].in_degree(),
                 "out_degree": v[s_list[i]].out_degree(),
+<<<<<<< HEAD
                 "betweenness": betweenness_val[i],
                 "excentricity": dist[i].max()
             },
@@ -107,6 +143,15 @@ for gsid in sample.global_session_id.values:
 sessions["diameter"] = sessions.global_session_id.map(pd.Series(data=session_data.diameter, index=session_data.global_session_id))
 sessions.to_csv(r"Outputs/sessions_new.csv", index=None)
 pages_sessions.to_csv(r"Outputs/pages_sessions_new.csv", index=None)
+=======
+                "betweeness": betweenness_val[i],
+                "excentricity": excentricity
+            },
+            ignore_index=True)
+
+# sessions["diameter"] = sessions.global_session_id.map(pd.Series(data=session_data.diameter, index=session_data.global_session_id))
+pages_sessions.to_csv(r"Outputs/pages_sessions.csv", index=None)
+>>>>>>> c8c0f406b72844e1c6280c071d4d04709a1a24b7
 print("   * Diameter sessions computed in %.1f seconds." %(timelib.time()-start_time))
 
 ###############################################################################
