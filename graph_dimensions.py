@@ -102,7 +102,7 @@ print("        Excentricity computed in %.1f seconds." %(timelib.time()-start_ti
 
 start_time= timelib.time()
 print("\n   * Plotting diameter ...", end="\r")
-quit()
+
 plt.hist(sessions[sessions.diameter>0].diameter.values, align="left")
 plt.grid(alpha=0.5)
 plt.xlabel("Diameter")

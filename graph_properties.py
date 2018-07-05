@@ -81,7 +81,8 @@ for gsid in sample.global_session_id.values:
     for u in s_urls:
         v[u] = g.add_vertex()
     session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
-    g.set_directed(False)
+    # g.set_directed(False)
+    quit()
 
     vp, ep = betweenness(g)
     betweenness_val = vp.a

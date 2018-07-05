@@ -43,6 +43,7 @@ pathlib.Path("Latex/Graphs").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/Clusters").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/pca").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/boxplot").mkdir(parents=True, exist_ok=True)
+pathlib.Path("shared").mkdir(parents=True, exist_ok=True)
 latex_output = open("Latex/latex_clusters.tex", "w")
 print("\n   * 'Latex' directory created.")
 

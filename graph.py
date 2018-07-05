@@ -29,6 +29,7 @@ def session_draw(cluster_id, sessions_id, log, pages, labels):
             color[v[u]] = colormap[idx+1].tolist()
         session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
         graph_draw(g, vertex_halo=halo, vertex_fill_color=color, output="Latex/Graphs/session"+str(id)+".png")
+        graph_draw(g, vertex_halo=halo, vertex_fill_color=color, output="shared/session"+str(id)+".svg")
     return
 
 def session_draw_bis(sessions_id, log):
