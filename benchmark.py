@@ -38,7 +38,8 @@ log_filename = "Outputs/MyLog.csv"
 urls_filename = "Outputs/pages.csv"
 session_filename = "Outputs/Sessions.csv"
 
-pathlib.Path("Matplot")
+pathlib.Path("Matplot").mkdir(parents=True, exist_ok=True)
+pathlib.Path("shared").mkdir(parents=True, exist_ok=True)
 
 ###############################################################################
 # READING DATA FILES
@@ -68,16 +69,10 @@ for n in range(1000):
     start_time = timelib.time()
     for gsid in sample.global_session_id.values:
         session = log[log.global_session_id==gsid]
-        s_urls = session.requested_url
-        s_urls = s_urls.append(session.referrer_url)
-        s_urls.drop_duplicates(inplace=True)
-        s_list = list(s_urls)
+        session = session[["requested_url", "referrer_url"]]
         g = Graph()
-        v = {}
-        for u in s_urls:
-            v[u] = g.add_vertex()
-        session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
-        graphs[gsid] = g
+        vmap = g.add_edge_list(session.values, hashed=True)
+        graphs[gsid] = g 
     t[0][n] = timelib.time()-start_time
 
     # beetweenness
@@ -104,7 +99,7 @@ for n in range(1000):
     # shortest distance
     start_time = timelib.time()
     for gsid in sample.global_session_id.values:
-        dist = shortest_distance(graphs[gsid], directed=True).a
+        dist = shortest_distance(graphs[gsid], directed=True).get_2d_array(range(g.num_vertices()))
         dist[dist==2147483647]=-1
     t[3][n] = timelib.time()-start_time
 
