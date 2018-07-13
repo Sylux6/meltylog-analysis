@@ -22,6 +22,7 @@ import pathlib
 import shutil
 
 from graph_tool.all import *
+import datetime
 
 ##################################
 ##################################
@@ -56,12 +57,9 @@ print("        "+session_filename+" loaded ({} rows) in {:.1f} seconds.".format(
 sessions.fillna(0, inplace=True)
 
 sample = sessions
-# sample = sessions[sessions.requests > 6]
-# sample = sample[sample.requests > 1000]
-# sample = sample.sample(n=10000)
 
-pages_sessions = pd.DataFrame(columns=["global_session_id", "url", "betweenness", "in_degree", "out_degree", "excentricity"])
-session_data = pd.DataFrame(columns=["global_session_id", "diameter"])
+pages_sessions = pd.DataFrame(columns=["global_session_id", "url", "betweenness", "in_degree", "out_degree", "depth"])
+session_data = pd.DataFrame(columns=["global_session_id", "depth"])
 
 total_session = sample.shape[0]
 count = 0
@@ -71,6 +69,7 @@ for gsid in sample.global_session_id.values:
     count = count + 1
     print("   * Computing graph session features {}/{}...".format(count, total_session), end='\r')
     
+    # graph
     session = log[log.global_session_id==gsid]
     s_urls = session.requested_url
     s_urls = s_urls.append(session.referrer_url)
@@ -81,16 +80,30 @@ for gsid in sample.global_session_id.values:
     for u in s_urls:
         v[u] = g.add_vertex()
     session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
-    # g.set_directed(False)
 
+    # betweeness
     vp, ep = betweenness(g)
     betweenness_val = vp.a
+
+    # graph depth
     dist = np.zeros((len(s_list), len(s_list)))
+    origins = []
+    graph_depth = 0
     for i in range(0, len(s_list)):
-        dist[i] = shortest_distance(g, source=v[s_list[i]]).a
-
+        if v[s_list[i]].in_degree() == 0:
+            origins.append(v[s_list[i]])
+    for vertex in origins:
+        dist = shortest_distance(g, source=vertex, directed=True).a
+        dist[dist==2147483647]=-1
+        graph_depth=max(graph_depth, dist.max())
 
     for i in range(0, len(s_list)):
+        depth = 0
+        for vertex in origins:
+            tmp = shortest_distance(g, source=vertex, target=v[s_list[i]], directed=True)
+            if tmp==2147483647:
+                tmp=-1
+            depth = max(depth, tmp)
         pages_sessions = pages_sessions.append(
             {
                 "global_session_id": gsid,
@@ -98,14 +111,14 @@ for gsid in sample.global_session_id.values:
                 "in_degree": v[s_list[i]].in_degree(),
                 "out_degree": v[s_list[i]].out_degree(),
                 "betweenness": betweenness_val[i],
-                "excentricity": dist[i].max()
+                "depth": depth
             },
             ignore_index=True)
     
-    session_data = session_data.append({"global_session_id": gsid, "diameter": dist.max()}, ignore_index=True)
+    session_data = session_data.append({"global_session_id": gsid, "depth": graph_depth}, ignore_index=True)
 
-sessions_data.to_csv(r"Outputs/diameter_new.csv", index=None)
-pages_sessions.to_csv(r"Outputs/pages_sessions_new.csv", index=None)
+session_data.to_csv(r"Outputs/depth_session_"+datetime.datetime.now().strftime("%B%d-%H:%M")+".csv", index=None)
+pages_sessions.to_csv(r"Outputs/pages_sessions_"+datetime.datetime.now().strftime("%B%d-%H:%M")+".csv", index=None)
 print("   * Diameter sessions computed in %.1f seconds." %(timelib.time()-start_time))
 
 ###############################################################################

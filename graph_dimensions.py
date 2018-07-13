@@ -36,8 +36,8 @@ begin_time = timelib.time()
 
 log_filename = "Outputs/MyLog.csv"
 urls_filename = "Outputs/pages.csv"
-session_filename = "Outputs/sessions_new.csv"
-pages_filemname = "Outputs/pages_sessions_new.csv"
+session_filename = "Outputs/depth_session.csv"
+pages_filemname = "Outputs/pages_sessions.csv"
 
 shutil.rmtree("Matplot/pages", ignore_errors=True)
 pathlib.Path("Matplot/pages").mkdir(parents=True, exist_ok=True)
@@ -45,9 +45,10 @@ pathlib.Path("Matplot/pages").mkdir(parents=True, exist_ok=True)
 shutil.rmtree("Latex", ignore_errors=True)
 pathlib.Path("Latex").mkdir(parents=True, exist_ok=True)
 pathlib.Path("Latex/images").mkdir(parents=True, exist_ok=True)
-latex_output = open("Latex/latex_clusters.tex", "w")
+pathlib.Path("shared/graph_properties").mkdir(parents=True, exist_ok=True)
+latex_output = open("Latex/main.tex", "w")
 
-latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\usetheme{Warsaw}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{graphicx}\n\\usepackage[english]{babel}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathrsfs}\n\\usepackage{verbatim}\n\\usepackage{lmodern}\n\\usepackage{listings}\n\\usepackage{caption}\n\\usepackage{multicol}\n\\usepackage{epsfig}\n\\usepackage{array}\n\\usepackage{tikz}\n\\usepackage{collcell}\n\n\\definecolor{mygreen}{rgb}{0,0.6,0}\n\\setbeamertemplate{headline}{}{}\n\\addtobeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}\n\n\\title{Melty Clusterization}\n\\author{Sylvain Ung}\n\\institute{Laboratoire d'informatique de Paris 6}\n\\date{\\today}\n\n\\begin{document}\n\\setbeamertemplate{section page}\n{\n  \\begin{centering}\n    \\vskip1em\\par\n    \\begin{beamercolorbox}[sep=4pt,center]{part title}\n      \\usebeamerfont{section title}\\insertsection\\par\n    \\end{beamercolorbox}\n  \\end{centering}\n}\n\n\\begin{frame}\n    \\titlepage\n\\end{frame}\n\n")
+latex_output.write("\\documentclass[xcolor={dvipsnames}, handout]{beamer}\n\n\\usetheme{Warsaw}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{graphicx}\n\\usepackage[english]{babel}\n\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{mathrsfs}\n\\usepackage{verbatim}\n\\usepackage{lmodern}\n\\usepackage{listings}\n\\usepackage{caption}\n\\usepackage{multicol}\n\\usepackage{epsfig}\n\\usepackage{array}\n\\usepackage{tikz}\n\\usepackage{collcell}\n\n\\definecolor{mygreen}{rgb}{0,0.6,0}\n\\setbeamertemplate{headline}{}{}\n\\addtobeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}\n\n\\title{Graph properties}\n\\author{Sylvain Ung}\n\\institute{Laboratoire d'informatique de Paris 6}\n\\date{\\today}\n\n\\begin{document}\n\\setbeamertemplate{section page}\n{\n  \\begin{centering}\n    \\vskip1em\\par\n    \\begin{beamercolorbox}[sep=4pt,center]{part title}\n      \\usebeamerfont{section title}\\insertsection\\par\n    \\end{beamercolorbox}\n  \\end{centering}\n}\n\n\\begin{frame}\n    \\titlepage\n\\end{frame}\n\n")
 
 ###############################################################################
 # READING DATA FILES
@@ -60,13 +61,12 @@ start_time = timelib.time()
 print("        Loading "+session_filename+" ...", end="\r")
 sessions = pd.read_csv(session_filename, sep=',')
 print("        "+session_filename+" loaded ({} rows) in {:.1f} seconds.".format(sessions.shape[0], timelib.time()-start_time))
-sessions.fillna(0, inplace=True)
 start_time = timelib.time() 
 print("        Loading "+pages_filemname+" ...", end="\r")
 pages_sessions = pd.read_csv(pages_filemname, sep=',', na_filter=False, low_memory=False)
 print("        "+pages_filemname+" loaded ({} rows) in {:.1f} seconds.".format(urls.shape[0], timelib.time()-start_time))
 
-dimensions = ["betweenness", "in_degree", "out_degree", "excentricity"]
+dimensions = ["betweenness", "in_degree", "out_degree", "depth"]
 pages_data = urls[urls.url.isin(pages_sessions.url)]
 category_list = pages_data[["category", "url"]].groupby("category").count().sort_values(by="url", ascending=False).index.values.tolist()
 
@@ -93,27 +93,29 @@ pages_out_degree = pages_sessions[["url", "out_degree"]].groupby("url").aggregat
 pages_data["out_degree"] = pages_data.url.map(pd.Series(data=pages_out_degree.out_degree.values, index=pages_out_degree.index))
 print("        Out_degree computed in %.1f seconds." %(timelib.time()-start_time))
 
-# excentricity
+# depth
 start_time= timelib.time()
-print("        Computing excentricity ...", end='\r')
-pages_excentricity = pages_sessions[["url", "excentricity"]].groupby("url").aggregate(lambda x: mean(x))
-pages_data["excentricity"] = pages_data.url.map(pd.Series(data=pages_excentricity.excentricity.values, index=pages_excentricity.index))
-print("        Excentricity computed in %.1f seconds." %(timelib.time()-start_time))
+print("        Computing depth ...", end='\r')
+pages_depth = pages_sessions[["url", "depth"]].groupby("url").aggregate(lambda x: mean(x))
+pages_data["depth"] = pages_data.url.map(pd.Series(data=pages_depth.depth.values, index=pages_depth.index))
+print("        Depth computed in %.1f seconds." %(timelib.time()-start_time))
 
 start_time= timelib.time()
-print("\n   * Plotting diameter ...", end="\r")
+print("\n   * Plotting depth session ...", end="\r")
 
-plt.hist(sessions[sessions.diameter>0].diameter.values, align="left")
+plt.hist(sessions.depth.values, align="left")
 plt.grid(alpha=0.5)
-plt.xlabel("Diameter")
+plt.xlabel("Depth")
 plt.ylabel("Frequency")
 ax = plt.gca()
-ax.set_xticks([n for n in range(int(sessions[(sessions.diameter>0) & (sessions.diameter<1000)].diameter.max()))])
-plt.savefig("Latex/images/diameter.png", format='png', bbox_inches="tight", dpi=1000)
+ax.set_xticks([n for n in range(sessions.depth.max())])
+plt.gca().set_yscale('log')
+plt.savefig("Latex/images/depth.png", format='png', bbox_inches="tight")
+plt.savefig("shared/graph_properties/depth.svg", format='svg', bbox_inches="tight")
 plt.clf()
-latex_output.write("\\begin{frame}{Diameter}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{images/diameter.png"+"}\n    \\end{center}\n\\end{frame}\n\n")
+latex_output.write("\\begin{frame}{Diameter}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{images/depth.png"+"}\n    \\end{center}\n\\end{frame}\n\n")
 
-print("   * Diameter plotted in %.1f seconds." %(timelib.time()-start_time))
+print("   * Depth plotted in %.1f seconds." %(timelib.time()-start_time))
 
 print("\n   * Scattering ...")
 
@@ -133,8 +135,11 @@ for f1 in range(0, len(dimensions)):
         plt.grid(alpha=0.5)
         plt.xlabel(dimensions[f1])
         plt.ylabel(dimensions[f2])
+        plt.gca().set_xscale('log')
+        plt.gca().set_yscale('log')
         ax.legend(loc="upper left", bbox_to_anchor=(1,1), title="category")
-        plt.savefig("Latex/images/"+dimensions[f1]+"-VS-"+dimensions[f2]+".png", format='png', bbox_inches="tight", dpi=1000)
+        plt.savefig("Latex/images/"+dimensions[f1]+"-VS-"+dimensions[f2]+".png", format='png', bbox_inches="tight")
+        plt.savefig("shared/graph_properties/"+dimensions[f1]+"-VS-"+dimensions[f2]+".svg", format='svg', bbox_inches="tight")
         latex_output.write("\\begin{frame}{"+dimensions[f1].replace("_", "\_")+" VS "+dimensions[f2].replace("_", "\_")+"}\n    \\begin{center}        \\includegraphics[width=\\textwidth,height=0.8\\textheight,keepaspectratio]{images/"+dimensions[f1]+"-VS-"+dimensions[f2]+".png"+"}\n    \\end{center}\n\\end{frame}\n\n")
         plt.clf()
         print("        "+dimensions[f1]+"-VS-"+dimensions[f2]+" in %.1f seconds." %(timelib.time()-start_time))
