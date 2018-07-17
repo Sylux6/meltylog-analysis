@@ -58,77 +58,90 @@ sessions = pd.read_csv(session_filename, sep=',')
 print("        "+session_filename+" loaded ({} rows) in {:.1f} seconds.".format(sessions.shape[0], timelib.time()-start_time))
 sessions.fillna(0, inplace=True)
 
-t = np.zeros((6, 1000))
-for n in range(1000):
-    print("   * Computing graph session features {}/1000...".format(n), end='\r')
-    sample = sessions.sample(n)
-    graphs = {}
-    total_session = sample.shape[0]
-    
+nb = 20
+range_req = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 800, 1000]
+r = np.zeros((len(range_req)-1, nb))
+t = np.zeros((6, len(range_req)-1, nb))
+
+for i in range(1, len(range_req)):
+
+    sample = sessions[(sessions.requests>=range_req[i-1])&(sessions.requests<range_req[i])].sample(nb)
+    gsid = sample.global_session_id.values
+    print("   * Computing graph session features [{}, {}[ ...".format(range_req[i-1], range_req[i]), end='\r')
+
     # graph-tools
-    start_time = timelib.time()
-    for gsid in sample.global_session_id.values:
-        session = log[log.global_session_id==gsid]
+    graphs = {}
+    for n in range(len(sample.global_session_id.values)):
+        session = log[log.global_session_id==gsid[n]]
         session = session[["requested_url", "referrer_url"]]
+        start_time = timelib.time()
+        s_urls = session.requested_url
+        s_urls = s_urls.append(session.referrer_url)
+        s_urls.drop_duplicates(inplace=True)
+        s_list = list(s_urls)
         g = Graph()
-        vmap = g.add_edge_list(session.values, hashed=True)
-        graphs[gsid] = g 
-    t[0][n] = timelib.time()-start_time
+        v = {}
+        for u in s_urls:
+            v[u] = g.add_vertex()
+        session.apply(lambda x: g.add_edge(v[x.referrer_url], v[x.requested_url]), axis=1)
+        graphs[gsid[n]] = g 
+        r[i-1][n] = session.shape[0]
+        t[0][i-1][n] = timelib.time()-start_time
 
     # beetweenness
-    start_time = timelib.time()
-    for gsid in sample.global_session_id.values:
-        vp, ep = betweenness(graphs[gsid])
+    for n in range(len(sample.global_session_id.values)):
+        start_time = timelib.time()
+        vp, ep = betweenness(graphs[gsid[n]])
         betweenness_val = vp.a
-    t[1][n] = timelib.time()-start_time
+        t[1][i-1][n] = timelib.time()-start_time
 
     # depth
-    start_time = timelib.time()
-    for gsid in sample.global_session_id.values:
+    for n in range(len(sample.global_session_id.values)):
+        start_time = timelib.time()
         origins = []
-        for vertex in graphs[gsid].vertices():
+        for vertex in graphs[gsid[n]].vertices():
             if vertex.in_degree() == 0:
                 origins.append(vertex)
         depth=0
         for vertex in origins:
-            dist = shortest_distance(graphs[gsid], source=vertex, directed=True).a
+            dist = shortest_distance(graphs[gsid[n]], source=vertex, directed=True).a
             dist[dist==2147483647]=-1
             depth=max(depth, dist.max())
-    t[2][n] = timelib.time()-start_time
+        t[2][i-1][n] = timelib.time()-start_time
 
     # shortest distance
-    start_time = timelib.time()
-    for gsid in sample.global_session_id.values:
-        dist = shortest_distance(graphs[gsid], directed=True).get_2d_array(range(g.num_vertices()))
+    for n in range(len(sample.global_session_id.values)):
+        start_time = timelib.time()
+        dist = shortest_distance(graphs[gsid[n]], directed=True).get_2d_array(range(g.num_vertices()))
         dist[dist==2147483647]=-1
-    t[3][n] = timelib.time()-start_time
+        t[3][i-1][n] = timelib.time()-start_time
 
     # in_degree
-    start_time = timelib.time()
-    for gsid in sample.global_session_id.values:
-        for vertex in graphs[gsid].vertices():
+    for n in range(len(sample.global_session_id.values)):
+        start_time = timelib.time()
+        for vertex in graphs[gsid[n]].vertices():
             vertex.in_degree()
-    t[4][n] = timelib.time()-start_time
+        t[4][i-1][n] = timelib.time()-start_time
 
     # out_degree
-    start_time = timelib.time()
-    for gsid in sample.global_session_id.values:
-        for vertex in graphs[gsid].vertices():
+    for n in range(len(sample.global_session_id.values)):
+        start_time = timelib.time()
+        for vertex in graphs[gsid[n]].vertices():
             vertex.out_degree()
-    t[5][n] = timelib.time()-start_time
+        t[5][i-1][n] = timelib.time()-start_time
 
 print("   * Graph session features sessions computed.")
 
 fig, ax = plt.subplots()
-plt.plot(t[0], label="graph")
-plt.plot(t[1], label="beetweenness")
-plt.plot(t[2], label="depth")
-plt.plot(t[3], label="shortest distance")
-plt.plot(t[4], label="in degree")
-plt.plot(t[5], label="out degree")
+plt.scatter(r.reshape((len(range_req)-1)*nb), t[0].reshape((len(range_req)-1)*nb), label="graph")
+plt.scatter(r.reshape((len(range_req)-1)*nb), t[1].reshape((len(range_req)-1)*nb), label="beetweenness")
+plt.scatter(r.reshape((len(range_req)-1)*nb), t[2].reshape((len(range_req)-1)*nb), label="depth")
+plt.scatter(r.reshape((len(range_req)-1)*nb), t[3].reshape((len(range_req)-1)*nb), label="shortest distance")
+plt.scatter(r.reshape((len(range_req)-1)*nb), t[4].reshape((len(range_req)-1)*nb), label="in degree")
+plt.scatter(r.reshape((len(range_req)-1)*nb), t[5].reshape((len(range_req)-1)*nb), label="out degree")
 plt.grid(alpha=0.5)
 plt.title("Benchmark")
-plt.xlabel("Number of sessions")
+plt.xlabel("Number of requests")
 plt.ylabel("Execution time (seconds)")
 plt.gca().set_xscale('log')
 plt.gca().set_yscale('log')
