@@ -2,13 +2,6 @@ import time as timelib
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
-from collections import Counter
-
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-
-from thema_mapper import *
 from log2traces import *
 from markov import *
 from information_theory import *
@@ -19,8 +12,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pylab import *
-import seaborn as sns
-import mpl_scatter_density
 from astropy.visualization import LogStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 
@@ -40,11 +31,21 @@ begin_time = timelib.time()
 
 filename = "Outputs/Sessions.csv"
 
-parameters = ["requests","timespan","requested_category_richness","requested_my_thema_richness","star_chain_like","bifurcation","entropy","standard_deviation","popularity_mean","inter_req_mean_seconds","TV_proportion","Celebrities_proportion","Series_proportion","Movies_proportion","Music_proportion","Unclassifiable_proportion","Comic_proportion","VideoGames_proportion","Other_proportion","Sport_proportion","News_proportion","read_pages"]
+parameters = [
+    "requests", "timespan", "requested_category_richness",
+    "requested_topic_richness", "star_chain_like", "bifurcation", "entropy",
+    "standard_deviation", "popularity_mean", "inter_req_mean_seconds",
+    "TV_proportion", "Series_proportion", "News_proportion",
+    "Celebrities_proportion", "VideoGames_proportion", "Music_proportion",
+    "Movies_proportion", "Sport_proportion", "Comic_proportion",
+    "Look_proportion", "Other_proportion", "Humor_proportion",
+    "Student_proportion", "Events_proportion", "Wellbeing_proportion",
+    "None_proportion", "Food_proportion", "Tech_proportion", "read_pages"
+]
 
 log_scale_parameters = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation", "read_pages"]
 
-log_scale_parameters_y = ["entropy", "bifurcation", "TV_proportion","Celebrities_proportion","Series_proportion","Movies_proportion","Music_proportion","Unclassifiable_proportion","Comic_proportion","VideoGames_proportion","Other_proportion","Sport_proportion","News_proportion", "requested_category_richness", "requested_my_thema_richness", "popularity_mean"]
+log_scale_parameters_y = ["entropy", "bifurcation", "TV_proportion","Celebrities_proportion","Series_proportion","Movies_proportion","Music_proportion","Unclassifiable_proportion","Comic_proportion","VideoGames_proportion","Other_proportion","Sport_proportion","News_proportion", "requested_category_richness", "requested_topic_richness", "popularity_mean"]
 
 # for scatter plots
 my_parameters = ["requests", "timespan", "standard_deviation", "star_chain_like", "bifurcation", "inter_req_mean_seconds"]
@@ -62,7 +63,7 @@ scatter_density = False
 pearson = False
 
 ####################
-# READING DATA FILES 
+# READING DATA FILES
 start_time = timelib.time()
 print("\n   * Loading "+filename+" ...", end="\r")
 sessions = pd.read_csv(filename, sep=',')

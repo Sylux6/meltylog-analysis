@@ -90,6 +90,8 @@ def normalize(serie):
         return serie.apply(lambda x: (x - min_value)/(max_value- min_value))
 
 def log_normalize(serie):
+    if serie.min() == 0:
+        serie = serie + 1
     max_value = log(serie.max())
     min_value = log(serie.min())
     if max_value == min_value:
