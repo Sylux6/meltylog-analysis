@@ -155,7 +155,7 @@ latex_output.write("            \\end{enumerate}\n        }\n    \\end{multicols
 ###############################################################################
 # CLUSTERING
 
-topic_list = list(np.unique(log[["requested_topic", "referrer_topic"]].values))
+topic_list = list(urls.topic.unique())
 category_list = list(urls.category.unique())
 
 start_time = timelib.time()
@@ -363,19 +363,19 @@ print("\n   * Computing markov matrix ...", end="\r")
 markov = np.zeros((len(category_list), len(category_list)))
 total_entries = log.shape[0]
 for i in range(0, len(category_list)):
-   for j in range(0, len(category_list)):
-       markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / total_entries
+    for j in range(0, len(category_list)):
+        markov[i][j] = log[(log.referrer_category==category_list[i]) & (log.requested_category==category_list[j])].shape[0] / total_entries
 fig, ax = plt.subplots()
 cax = ax.matshow(markov, cmap="coolwarm")
 for i in range(markov.shape[0]):
-   for j in range(markov.shape[1]):
-       ax.text(j, i, '\n%.2f' % markov[i][j], va='center', ha='center', size=6, color="w")
+    for j in range(markov.shape[1]):
+        ax.text(j, i, '\n%.2f' % markov[i][j], va='center', ha='center', size=6, color="w")
 fig.colorbar(cax)
 ax.set_xticks(np.arange(len(category_list)))
 ax.set_yticks(np.arange(len(category_list)))
 ax.set_xticklabels(category_list)
 ax.set_yticklabels(category_list)
-ax.xaxis.set_label_position('top') 
+ax.xaxis.set_label_position('top')
 plt.setp(ax.get_xticklabels(), rotation=45, ha="left", rotation_mode="anchor")
 plt.xlabel("Requested category")
 plt.ylabel("Referrer category")
@@ -426,7 +426,8 @@ for cluster_id in sorted_clusters:
     sessions_id = plot_sessions(order_dic[cluster_id], cluster_log,'Latex/Clusters/'+str(n_clusters_1)+"x"+str(n_clusters_2)+'/cluster'+order_dic[cluster_id]+'.png', cluster_id, labels=list(log.requested_topic.unique()), N_max_sessions=10,field="requested_topic", max_time=span[cluster_id],time_resolution=None,mark_requests=False, sessions=selected_sessions[cluster_id])
 
     # graph
-    session_draw(cluster_id, sessions_id, log, urls, category_list)
+    # session_draw(cluster_id, sessions_id, log, urls, category_list)
+    multi_session_draw(cluster_id, sessions_id, log, urls, category_list, topic_list)
     latex_output.write("% cluster "+order_dic[cluster_id]+"\n\\section{Cluster "+order_dic[cluster_id]+"}\n\\begin{frame}{Cluster "+order_dic[cluster_id]+"}\n    \\begin{columns}\n        \\begin{column}{.6\\textwidth}\n            \\includegraphics[width=\\textwidth, keepaspectratio]{Clusters/"+str(n_clusters_1)+"x"+str(n_clusters_2)+"/cluster"+order_dic[cluster_id]+"}\n        \\end{column}\n        \\begin{column}{.4\\textwidth}\n            \\begin{center}\n              \\scalebox{.4}{\\begin{tabular}{|c|c|}\n                  \\hline\n                  \\multicolumn{2}{|c|}{mean} \\\\\n                  \\hline\n                  size & "+str(sessions[sessions.global_cluster_id==cluster_id].shape[0])+" \\\\\n                  \\hline\n")
     for dim in dimensions_1+dimensions_2:
         latex_output.write("                  "+features_map(dim)+" & {:.3f} \\\\\n                  \\hline\n".format(centroids[centroids.global_cluster_id==cluster_id][dim].values[0]))
