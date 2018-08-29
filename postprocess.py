@@ -17,6 +17,9 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 
 from math import sqrt
 from scipy import stats
+import pathlib
+import shutil
+import mpl_scatter_density
 
 ##################################
 ##################################
@@ -57,9 +60,9 @@ lognorm = ["requests", "timespan", "inter_req_mean_seconds", "standard_deviation
 latex_output = open("Outputs/latex_dimensions.tex", "w")
 
 # GENERATORS
-histogen = False
+histogen = True
 scattergen = False
-scatter_density = False
+scatter_density = True
 pearson = False
 
 ####################
@@ -101,6 +104,7 @@ print("   > Density scatter plots: {}".format(scatter_density))
 print("   > Pearson correlation: {}".format(pearson))
 
 if histogen:
+    pathlib.Path("Matplot/Normalized").mkdir(parents=True, exist_ok=True)
     start_time = timelib.time()
     print("\n   * Generating histograms ...", end="\r")
     for p in parameters:
@@ -149,6 +153,7 @@ if histogen:
 ##########################
 # GENERATING SCATTER PLOTS
 if scattergen:
+    pathlib.Path("Matplot/Scatter/Normalized").mkdir(parents=True, exist_ok=True)
     start_time = timelib.time()
     print("\n   * Generating scatter plots ...", end="\r")
     for i in range (0, len(my_parameters)):
@@ -175,6 +180,7 @@ if scattergen:
 ##################################
 # GENERATING DENSITY SCATTER PLOTS
 if scatter_density:
+    pathlib.Path("Matplot/Density/v2/").mkdir(parents=True, exist_ok=True)
     start_time = timelib.time()
     print("\n   * Generating scatter density ...", end="\r")
     latex_output.write("\n%%%%%%%%\n% SCATTER PLOTS\n%%%%%%%%\n\n")
